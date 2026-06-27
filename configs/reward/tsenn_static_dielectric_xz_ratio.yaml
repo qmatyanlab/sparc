@@ -1,0 +1,32 @@
+_target_: rewards.reward.Reward
+
+root_dir: rewards
+
+prop_cfg:
+  - name: tsenn_static_dielectric_xz_ratio
+    calculator:
+      _target_: rewards.calculators.TSENNStaticDielectric
+      root_dir: rewards/tsenn_static_dielectric_xz_ratio
+      task: static_dielectric
+      model_path: ${hydra:runtime.cwd}/data/dielectric/indep_e3_dielectric_DDP_Lmax2_Lr0.01_bs16_em64_layers2_mul32_best.torch
+      device: ${device}
+      batch_size: 16
+      r_max: 6.0
+      out_dim: 1
+      em_dim: 64
+      lmax: 2
+      layers: 2
+      mul: 32
+      num_neighbors: 59.902574690065045
+      scale_0e: 8.20143833581954
+      scale_2e: 0.6969301341467804
+      dropout_prob: 0.4
+      use_batch_norm: false
+      scalar_mode: xz_ratio
+      standardize_structure: conventional
+      standardize_symprec: 0.1
+    target: ascending
+    minv: 0.0
+    maxv: 0.05
+
+reward_threshold: 0.875

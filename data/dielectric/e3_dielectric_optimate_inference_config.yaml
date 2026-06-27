@@ -1,0 +1,21 @@
+model:
+  in_dim: 118
+  em_dim: 128
+  layers: 4
+  mul: 64
+  lmax: 3
+  dropout_prob: 0.4
+  use_batch_norm: false
+
+inference:
+  # checkpoint_path: model/e3_dielectric_optimate_DDP_Lmax2_Lr0.01_bs24_em128_layers4_mul64_best.torch
+  checkpoint_path: model/e3_dielectric_optimate_DDP_Lmax3_Lr0.01_bs24_em128_layers4_mul64_best.torch
+  cache_path: dataset/cached_dielectric_spectra_preprocessed_data.pt
+  device: cuda
+  batch_size: 64
+  num_workers: 0
+  seed: 3407
+  samples_per_split: 4
+
+outputs:
+  artifact_dir: pngs/e3_dielectric_optimate_inference

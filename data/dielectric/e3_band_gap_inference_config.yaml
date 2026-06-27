@@ -1,0 +1,23 @@
+model:
+  in_dim: 118
+  em_dim: 128
+  layers: 4
+  mul: 16
+  lmax: 2
+  dropout_prob: 0.0
+  use_batch_norm: false
+  r_max: 6.0
+  num_neighbors: 55.328226741470544
+
+inference:
+  checkpoint_path: optuna_bandgap_trial_2_gpu0_best.torch
+  cache_path: cached_band_gap_preprocessed_data.pt
+  device: cuda
+  batch_size: 256
+  num_workers: 0
+  seed: 3407
+
+outputs:
+  artifact_dir: ../../runtime/band_gap_parity_splits
+  png_dpi: 600
+  eps_dpi: 300

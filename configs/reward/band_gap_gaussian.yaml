@@ -1,0 +1,21 @@
+_target_: rewards.reward.Reward
+
+root_dir: rewards
+
+prop_cfg:
+  - name: band_gap
+    calculator:
+      _target_: rewards.calculators.ALIGNN
+      root_dir: rewards/bandgap
+      task: band_gap
+      device: ${device}
+      silent: true
+    target: 3.0
+    minv: 0.0
+    maxv: 3.0
+    reward_mode: gaussian_target
+    tau: 0.5
+    success_tol: 0.3
+    success_bonus: 0.2
+
+reward_threshold: 0.875

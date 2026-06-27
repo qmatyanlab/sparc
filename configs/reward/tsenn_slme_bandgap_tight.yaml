@@ -1,0 +1,101 @@
+_target_: rewards.reward.Reward
+
+root_dir: rewards
+
+prop_cfg:
+  - name: band_gap
+    calculator:
+      _target_: rewards.calculators.ALIGNN
+      root_dir: rewards/bandgap
+      task: band_gap
+      device: ${device}
+      silent: true
+    target: 1.3
+    minv: 0.0
+    maxv: 1.0
+    weight: 0.5
+
+  - name: tsenn_slme_eta
+    calculator:
+      _target_: rewards.calculators.TSENNSLME
+      root_dir: rewards/tsenn_slme_eta
+      task: eta
+      model_path: ${hydra:runtime.cwd}/rewards/calculators/tsenn/optuna_trial_30_best.torch
+      device: ${device}
+      r_max: 6.0
+      out_dim: 300
+      em_dim: 128
+      lmax: 2
+      layers: 2
+      mul: 64
+      num_neighbors: 47.93693308232073
+      scale_0e: 9.654586159705472
+      scale_2e: 2.1930899418921146
+      dropout_prob: 0.4
+      use_batch_norm: false
+      thickness_um: 0.1
+      temperature_k: 300.0
+      radiative_fraction: 1.0
+      voltage_points: 2000
+    target: ascending
+    minv: 0.0
+    maxv: 0.35
+    power: 2.0
+    weight: 0.5
+
+  - name: tsenn_slme_jsc
+    calculator:
+      _target_: rewards.calculators.TSENNSLME
+      root_dir: rewards/tsenn_slme_jsc
+      task: jsc
+      model_path: ${hydra:runtime.cwd}/rewards/calculators/tsenn/optuna_trial_30_best.torch
+      device: ${device}
+      r_max: 6.0
+      out_dim: 300
+      em_dim: 128
+      lmax: 2
+      layers: 2
+      mul: 64
+      num_neighbors: 47.93693308232073
+      scale_0e: 9.654586159705472
+      scale_2e: 2.1930899418921146
+      dropout_prob: 0.4
+      use_batch_norm: false
+      thickness_um: 0.1
+      temperature_k: 300.0
+      radiative_fraction: 1.0
+      voltage_points: 2000
+    target: ascending
+    minv: 0.0
+    maxv: 350.0
+    weight: 0.0
+
+  - name: tsenn_slme_voc
+    calculator:
+      _target_: rewards.calculators.TSENNSLME
+      root_dir: rewards/tsenn_slme_voc
+      task: voc
+      model_path: ${hydra:runtime.cwd}/rewards/calculators/tsenn/optuna_trial_30_best.torch
+      device: ${device}
+      r_max: 6.0
+      out_dim: 300
+      em_dim: 128
+      lmax: 2
+      layers: 2
+      mul: 64
+      num_neighbors: 47.93693308232073
+      scale_0e: 9.654586159705472
+      scale_2e: 2.1930899418921146
+      dropout_prob: 0.4
+      use_batch_norm: false
+      thickness_um: 0.1
+      temperature_k: 300.0
+      radiative_fraction: 1.0
+      voltage_points: 2000
+    target: ascending
+    minv: 0.0
+    maxv: 2.5
+    weight: 0.0
+
+reward_threshold: 0.5
+reduce: min

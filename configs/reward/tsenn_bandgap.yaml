@@ -1,0 +1,43 @@
+# reward for TSENN spectra with bandgap >= 0.5 eV (multi-objective)
+_target_: rewards.reward.Reward
+
+root_dir: rewards
+
+prop_cfg:
+  - name: tsenn_dielectric_constant
+    calculator:
+      _target_: rewards.calculators.TSENN
+      root_dir: rewards/tsenn_dielectric_constant
+      task: tsenn_dielectric
+      # model_path: ${hydra:runtime.cwd}/rewards/calculators/tsenn/revision_250909_Lmax_2_Lr_0.01_bs_8_em_128_layers_4_best.torch
+      model_path: ${hydra:runtime.cwd}/rewards/calculators/tsenn/auxiliary_optuna_trial_5_em_dim_128_layers_3_mul_64_lmax_2_best.torch
+      device: ${device}
+      r_max: 6.0
+      out_dim: 300
+      em_dim: 128
+      lmax: 2
+      layers: 3
+      mul: 64
+      num_neighbors: 44.0
+      scale_0e: 12.0
+      scale_2e: 2.44
+      dropout_prob: 0.0
+      use_batch_norm: false
+    target: ascending
+    minv: 0.0
+    maxv: 1.0
+    weight: 0.6
+  - name: band_gap
+    calculator:
+      _target_: rewards.calculators.ALIGNN
+      root_dir: rewards/bandgap
+      task: band_gap
+      device: ${device}
+      silent: true
+    target: ascending
+    minv: 0.5
+    maxv: 2.0
+    weight: 0.4
+
+reward_threshold: 0.8
+reduce: weight

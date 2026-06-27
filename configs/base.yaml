@@ -1,0 +1,58 @@
+# global setting
+expname: test
+results_dir: exp_res
+device: cuda
+seed: null
+deterministic_torch: false
+
+# RL
+rl_epoch: 120
+
+# sampling
+sample_cfg:
+  num_batches: 1
+  max_num: ${eval_size}
+  pre_relax_max_num: null
+  adaptive_spacegroup:
+    enabled: false
+    ema_decay: 0.8
+    reward_scale: 1.0
+    prior_mix: 0.5
+    min_prob: 1.0e-4
+  max_atoms_per_structure: null
+  min_volume_per_atom: 2 # in A^3, 4 is the volume of a sphere with radius 1.0 A, which is a typical covalent bond length
+  # Block lanthanides (La-Lu, Z=57-71) and actinides supported by DiffCSP (Ac-Fm, Z=89-100)
+  exclude_atomic_numbers:
+    - [57, 71]
+    - [89, 100]
+  filter:
+    _target_: pipeline.filters.opt_filter.OptFilter
+    metrics:
+      - validity
+      - unique
+      - stable
+    device: ${device}
+    silent: True
+    # When true, structures failing ONLY the e_hull `stable` gate are kept (tagged
+    # is_unstable) for use as RL hard negatives instead of dropped. Default false =>
+    # legacy behavior. Pair with finetune.n_hard_negatives / advantage_baseline.
+    penalize_unstable: False
+    fmax: 0.05
+    max_n_steps: 5000
+    max_natoms_per_batch: 128
+    max_total_atoms_per_relax_call: 200
+
+# rewards and finetune
+# maximum number of samples to score per RL loop
+eval_size: 16
+
+hydra:
+  run:
+    dir: ${results_dir}/${expname}
+    # dir: ${results_dir}/${expname}-${now:%Y-%m-%d_%H-%M-%S}
+
+defaults:
+  - pipeline: sparc
+  - model: symmcd
+  - reward: band_gap
+  - logger: wandb

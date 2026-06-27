@@ -1,0 +1,31 @@
+{
+  "arch": "TSENN_full_tensor",
+  "cache_pt": "rewards/calculators/tsenn/cached_auxiliary_preprocessed_data.pt",
+  "checkpoint_path": "rewards/calculators/tsenn/optuna_trial_30_best.torch",
+  "constrain_2e": false,
+  "dropout_prob": 0.4,
+  "em_dim": 128,
+  "in_dim": 118,
+  "irreps_out": "300x0e + 300x2e",
+  "layers": 2,
+  "lmax": 2,
+  "log_path": "logs/optuna_psd_c4p0-48447689-0.out",
+  "model_id": "optuna_trial_30",
+  "mul": 64,
+  "num_neighbors": 47.93693308232073,
+  "optuna": {
+    "best_params": {
+      "batch_size": 9,
+      "em_dim": 128,
+      "layers": 2,
+      "lr": 0.004221462745582569,
+      "mul": 64
+    },
+    "best_trial_number": 30
+  },
+  "out_dim": 300,
+  "r_max": 6.0,
+  "scale_0e": 9.654586159705472,
+  "scale_2e": 2.1930899418921146,
+  "use_batch_norm": false
+}

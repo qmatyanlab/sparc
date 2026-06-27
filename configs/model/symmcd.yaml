@@ -1,0 +1,23 @@
+_target_: models.suite.SymmCDSuite
+
+model_name: symmcd
+device: ${device}
+model_path: null
+
+sample_cfg:
+  # batch_size: ${calc:'${eval_size} * 12'}
+  batch_size: 256
+  num_batches: ${sample_cfg.num_batches}
+  dataset: mp          # "mp" for mp_20, "carbon", "perov"
+  generation_batch_size: 128
+  step_lr: 5e-6
+  restrict_spacegroups: []  # e.g. [1, 2, 225] to restrict SG sampling
+  sg_temperature: 1.0       # >1 flattens SG distribution (more diversity/P1); 1.0 = mp_20 empirical
+
+finetune_cfg:
+  batch_size: ${eval_size}
+  timesteps: 1000
+  lr: 0.0001
+  accum_steps: 50
+  sigma: 0.025         # KL regularisation weight
+  optimize_site_symm: true

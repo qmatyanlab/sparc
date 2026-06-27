@@ -1,0 +1,223 @@
+import os
+from pathlib import Path
+from typing import List, Tuple
+
+import numpy as np
+from pymatgen.core.structure import Structure
+from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+
+from rewards.calculators.base import Calculator
+from rewards.calculators.tsenn.calc import TSENN
+
+
+class TSENNStaticDielectric(Calculator):
+    VALID_SCALAR_MODES = {
+        "trace_mean",
+        "max_diag",
+        "anisotropy",
+        "component",
+        "xz_ratio",
+        "layered_uniaxial",
+    }
+
+    VALID_STANDARDIZE_MODES = {"none", "conventional", "refined"}
+
+    def __init__(
+        self,
+        root_dir: str,
+        task: str = "static_dielectric",
+        model_path: str | None = None,
+        device: str | None = None,
+        batch_size: int = 16,
+        r_max: float = 6.0,
+        out_dim: int = 1,
+        em_dim: int = 64,
+        lmax: int = 2,
+        layers: int = 2,
+        mul: int = 32,
+        num_neighbors: float = 59.902574690065045,
+        scale_0e: float = 8.20143833581954,
+        scale_2e: float = 0.6969301341467804,
+        dropout_prob: float = 0.4,
+        use_batch_norm: bool = False,
+        scalar_mode: str = "trace_mean",
+        component_i: int = 0,
+        component_j: int = 0,
+        standardize_structure: str = "none",
+        standardize_symprec: float = 0.1,
+    ) -> None:
+        super().__init__(root_dir, task)
+        self.root_path = Path(self.root_dir).resolve()
+
+        self.scalar_mode = str(scalar_mode).lower()
+        if self.scalar_mode not in self.VALID_SCALAR_MODES:
+            raise ValueError(
+                f"Invalid scalar_mode '{scalar_mode}'. "
+                f"Valid modes: {sorted(self.VALID_SCALAR_MODES)}"
+            )
+
+        self.component_i = int(component_i)
+        self.component_j = int(component_j)
+        if self.scalar_mode == "component":
+            if self.component_i not in (0, 1, 2) or self.component_j not in (0, 1, 2):
+                raise ValueError("component_i and component_j must be in {0, 1, 2}")
+
+        self.standardize_structure = str(standardize_structure).lower()
+        if self.standardize_structure not in self.VALID_STANDARDIZE_MODES:
+            raise ValueError(
+                "standardize_structure must be one of "
+                f"{sorted(self.VALID_STANDARDIZE_MODES)}"
+            )
+        self.standardize_symprec = float(standardize_symprec)
+
+        if model_path is None:
+            raise ValueError("TSENNStaticDielectric model_path must be provided.")
+        from utils.assets import resolve_path
+
+        model_file = resolve_path(model_path)
+        if not model_file.is_file():
+            raise FileNotFoundError(
+                f"TSENNStaticDielectric model not found: {model_path}"
+            )
+        self.model_path = str(model_file.resolve())
+
+        self.tsenn = TSENN(
+            root_dir=root_dir,
+            task=task,
+            model_path=self.model_path,
+            device=device,
+            batch_size=batch_size,
+            r_max=r_max,
+            out_dim=out_dim,
+            em_dim=em_dim,
+            lmax=lmax,
+            layers=layers,
+            mul=mul,
+            num_neighbors=num_neighbors,
+            scale_0e=scale_0e,
+            scale_2e=scale_2e,
+            dropout_prob=dropout_prob,
+            use_batch_norm=use_batch_norm,
+        )
+        if self.tsenn.out_dim != 1:
+            raise ValueError(
+                "TSENNStaticDielectric expects out_dim=1 for static-limit tensor prediction."
+            )
+
+    def predict_static_tensor(
+        self,
+        struc_list: List[Structure],
+    ) -> tuple[np.ndarray, np.ndarray]:
+        prepared_structures = []
+        prepared_indices = []
+        for index, structure in enumerate(struc_list):
+            if self.standardize_structure == "conventional":
+                try:
+                    structure = SpacegroupAnalyzer(
+                        structure, symprec=self.standardize_symprec
+                    ).get_conventional_standard_structure()
+                except Exception:
+                    continue
+            elif self.standardize_structure == "refined":
+                try:
+                    structure = SpacegroupAnalyzer(
+                        structure, symprec=self.standardize_symprec
+                    ).get_refined_structure()
+                except Exception:
+                    continue
+            prepared_structures.append(structure)
+            prepared_indices.append(index)
+
+        tensors = np.full((len(struc_list), 3, 3), np.nan, dtype=float)
+        valid_mask = np.zeros(len(struc_list), dtype=bool)
+        if not prepared_structures:
+            return tensors, valid_mask
+
+        _, prepared_tensors, prepared_valid_mask = self.tsenn.predict_epsilon2_tensor(
+            prepared_structures,
+            energy_min=0.0,
+            energy_max=0.0,
+        )
+
+        prepared_tensors = prepared_tensors[:, 0]
+        prepared_tensors = 0.5 * (
+            prepared_tensors + np.swapaxes(prepared_tensors, 1, 2)
+        )
+        for prepared_index, source_index in enumerate(prepared_indices):
+            if not prepared_valid_mask[prepared_index]:
+                continue
+            tensors[source_index] = prepared_tensors[prepared_index]
+            valid_mask[source_index] = True
+
+        return tensors, valid_mask
+
+    def _resolve_output_path(self, label: str, suffix: str) -> str:
+        safe_label = str(label)
+        if safe_label in {"", ".", ".."}:
+            raise ValueError("label must be a non-empty filename stem")
+        if Path(safe_label).name != safe_label:
+            raise ValueError("label must not contain path separators")
+
+        path = (self.root_path / f"{safe_label}{suffix}").resolve()
+        if path.parent != self.root_path:
+            raise ValueError("label must resolve within calculator root_dir")
+        return str(path)
+
+    def _reduce_tensor_to_scalar(
+        self,
+        tensors: np.ndarray,
+        valid_mask: np.ndarray,
+    ) -> np.ndarray:
+        results = np.full(len(tensors), np.nan, dtype=float)
+        if not bool(np.any(valid_mask)):
+            return results
+
+        valid_tensors = tensors[valid_mask]
+
+        if self.scalar_mode == "trace_mean":
+            scalars = np.trace(valid_tensors, axis1=1, axis2=2) / 3.0
+        elif self.scalar_mode == "max_diag":
+            scalars = np.max(np.diagonal(valid_tensors, axis1=1, axis2=2), axis=1)
+        elif self.scalar_mode == "anisotropy":
+            iso_scalar = np.trace(valid_tensors, axis1=1, axis2=2)[:, None, None] / 3.0
+            scalars = np.linalg.norm(
+                valid_tensors - iso_scalar * np.eye(3)[None],
+                axis=(1, 2),
+            )
+        elif self.scalar_mode == "xz_ratio":
+            scalars = np.abs(valid_tensors[:, 0, 2]) / (
+                np.abs(valid_tensors[:, 0, 0]) + np.abs(valid_tensors[:, 2, 2]) + 1e-8
+            )
+        elif self.scalar_mode == "layered_uniaxial":
+            eps_xx = valid_tensors[:, 0, 0]
+            eps_yy = valid_tensors[:, 1, 1]
+            eps_zz = valid_tensors[:, 2, 2]
+            eps_perp = 0.5 * (eps_xx + eps_yy)
+            layered_anisotropy = np.abs(eps_zz - eps_perp) / (
+                np.abs(eps_zz) + np.abs(eps_perp) + 1e-8
+            )
+            inplane_mismatch = np.abs(eps_xx - eps_yy) / (
+                np.abs(eps_xx) + np.abs(eps_yy) + 1e-8
+            )
+            scalars = layered_anisotropy * (1.0 - inplane_mismatch)
+        else:
+            scalars = valid_tensors[:, self.component_i, self.component_j]
+
+        results[valid_mask] = scalars
+        return results
+
+    def calc(
+        self,
+        samples: Tuple[List[Structure], str],
+        label: str = "tmp",
+    ):
+        struc_list = samples[0]
+        out_path = self._resolve_output_path(label, ".txt")
+        tensor_path = self._resolve_output_path(f"{label}_tensor", ".npz")
+
+        tensors, valid_mask = self.predict_static_tensor(struc_list)
+        results = self._reduce_tensor_to_scalar(tensors, valid_mask)
+
+        np.savetxt(out_path, results, fmt="%.6f")
+        np.savez(tensor_path, tensor=tensors, valid_mask=valid_mask)
+        return results

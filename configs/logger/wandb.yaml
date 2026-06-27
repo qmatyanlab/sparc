@@ -1,0 +1,6 @@
+_target_: pipeline.utils.logger.WandBLogger
+name: ${expname}
+project: SPARC
+entity: null
+group: null
+mode: 'online'

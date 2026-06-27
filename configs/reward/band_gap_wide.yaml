@@ -1,0 +1,20 @@
+# reward for target band gap = 3.0 eV, wider basin (maxv=3.0 vs 2.0)
+# maxv=3.0 gives gradient for bg in [0, 6]; threshold 0.875 passes bg in [2.625, 3.375]
+# This produces better SG diversity vs maxv=2.0 (observed in v4)
+_target_: rewards.reward.Reward
+
+root_dir: rewards
+
+prop_cfg:
+  - name: band_gap
+    calculator:
+      _target_: rewards.calculators.ALIGNN
+      root_dir: rewards/bandgap
+      task: band_gap
+      device: ${device}
+      silent: true
+    target: 3.0
+    minv: 0.0
+    maxv: 3.0
+
+reward_threshold: 0.875

@@ -1,0 +1,13 @@
+key,value
+sample_pt,/global/cfs/cdirs/m2663/angush/sparc/exp_res/bandgap3_symmcd_sgtemp3_test_v12/samples/step_0010_eval.pt
+sample_index,7
+formula,TbPr2Ge
+spacegroup_number,62
+spacegroup_symbol,Pnma
+n_atoms_total,16
+n_asu_sites,3
+lengths,"(5.682354927062988, 7.262520790100098, 4.896403789520264)"
+angles,"(90.0, 90.0, 90.0)"
+asu_site_0,"Pr 8d symm=1 raw=(0.6782,0.4358,0.3205) folded=(0.6782,0.4358,0.3205)"
+asu_site_1,"Ge 4c symm=.m. raw=(0.3731,0.2500,0.4365) folded=(0.8731,0.2500,0.0635)"
+asu_site_2,"Tb 4c symm=.m. raw=(0.5495,0.2500,0.8618) folded=(0.5495,0.2500,0.8618)"

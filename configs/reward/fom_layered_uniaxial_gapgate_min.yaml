@@ -1,0 +1,67 @@
+# Layered-uniaxial dielectric Figure of Merit GATED by band gap.
+#
+# FoM = min( d_aniso , g_gap )   (reduce: min = conjunctive AND)
+#   d_aniso : TSENNStaticDielectric (layered_uniaxial), normalized ascending 0->0.20
+#             -- IDENTICAL to the original run so only the gap gate is added.
+#   g_gap   : E3NNBandGap, ascending ramp minv=0.5, maxv=1.2 -- a one-sided floor that
+#             pushes the gap AWAY from 0 (metal). Conservative (midpoint ~0.85 eV) on
+#             purpose: the surrogate's 0-0.8 eV band is where metals masquerade as small-
+#             gap semiconductors (e.g. the Nb-Mo-Se family predicted at 0.5-0.8 eV), so the
+#             gate ramps through exactly that danger zone instead of trusting it.
+#
+# WHY min (not weight/additive): the anisotropy reward DIVERGES as gap->0, so an additive
+# sum lets a metal buy back its zero gap with huge anisotropy (the reward-hack seen in the
+# ungated run). min makes the gap a NECESSARY condition: g_gap->0 forces FoM->0 regardless
+# of anisotropy. Both terms are already clamped to [0,1] by linear_scaling, so anisotropy
+# can't diverge past 1. See scripts/select_layered_dielectric_candidates.py and the
+# reward_surface_2d.png / bandgap_gate_design.png analyses.
+#
+# Band gap is the E3NN optuna_bandgap regressor via the softplus-OFF E3NNBandGap (NOT the
+# TSENN gap head, which floors to ln2~0.693 eV).
+_target_: rewards.reward.Reward
+
+root_dir: rewards
+reduce: min
+
+prop_cfg:
+  - name: tsenn_static_dielectric_layered_uniaxial
+    calculator:
+      _target_: rewards.calculators.TSENNStaticDielectric
+      root_dir: rewards/tsenn_static_dielectric_layered_uniaxial
+      task: static_dielectric
+      model_path: ${hydra:runtime.cwd}/data/dielectric/indep_e3_dielectric_DDP_Lmax2_Lr0.01_bs16_em64_layers2_mul32_best.torch
+      device: ${device}
+      batch_size: 16
+      r_max: 6.0
+      out_dim: 1
+      em_dim: 64
+      lmax: 2
+      layers: 2
+      mul: 32
+      num_neighbors: 59.902574690065045
+      scale_0e: 8.20143833581954
+      scale_2e: 0.6969301341467804
+      dropout_prob: 0.4
+      use_batch_norm: false
+      scalar_mode: layered_uniaxial
+      standardize_structure: refined
+      standardize_symprec: 0.1
+    target: ascending
+    minv: 0.0
+    maxv: 0.20
+
+  - name: band_gap
+    calculator:
+      _target_: rewards.calculators.E3NNBandGap
+      root_dir: rewards/bandgap
+      task: band_gap
+      model_path: ${hydra:runtime.cwd}/data/dielectric/optuna_bandgap_trial_2_gpu0_best.torch
+      config_path: ${hydra:runtime.cwd}/data/dielectric/e3_band_gap_inference_config.yaml
+      device: ${device}
+      batch_size: 256
+      silent: true
+    target: ascending
+    minv: 0.5
+    maxv: 1.2
+
+reward_threshold: 0.5

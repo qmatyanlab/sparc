@@ -1,0 +1,113 @@
+_target_: rewards.reward.Reward
+
+root_dir: rewards
+
+prop_cfg:
+  - name: band_gap
+    calculator:
+      _target_: rewards.calculators.ALIGNN
+      root_dir: rewards/bandgap
+      task: band_gap
+      device: ${device}
+      silent: true
+    target: ascending
+    minv: 0.5
+    maxv: 3.0
+    weight: 0.4
+
+  - name: tsenn_slme_optimate_eta
+    calculator:
+      _target_: rewards.calculators.TSENNSLME
+      root_dir: rewards/tsenn_slme_optimate_eta
+      task: eta
+      model_path: ${hydra:runtime.cwd}/data/dielectric/e3_dielectric_optimate_DDP_Lmax2_Lr0.01_bs24_em128_layers4_mul64_best.torch
+      device: ${device}
+      batch_size: 64
+      r_max: 6.0
+      out_dim: 201
+      em_dim: 128
+      lmax: 2
+      layers: 4
+      mul: 64
+      num_neighbors: 38.85585538243254
+      scale_0e: 7.948065
+      dropout_prob: 0.4
+      use_batch_norm: false
+      output_mode: trace
+      energy_min: 0.0
+      energy_max: 20.0
+      integration_lower_bound: band_gap
+      eta_backend: pymatgen
+      thickness_um: 0.1
+      temperature_k: 300.0
+      radiative_fraction: 1.0
+      voltage_points: 2000
+    target: ascending
+    minv: 0.0
+    maxv: 0.35
+    weight: 0.6
+
+  - name: tsenn_slme_optimate_jsc
+    calculator:
+      _target_: rewards.calculators.TSENNSLME
+      root_dir: rewards/tsenn_slme_optimate_jsc
+      task: jsc
+      model_path: ${hydra:runtime.cwd}/data/dielectric/e3_dielectric_optimate_DDP_Lmax2_Lr0.01_bs24_em128_layers4_mul64_best.torch
+      device: ${device}
+      batch_size: 64
+      r_max: 6.0
+      out_dim: 201
+      em_dim: 128
+      lmax: 2
+      layers: 4
+      mul: 64
+      num_neighbors: 38.85585538243254
+      scale_0e: 7.948065
+      dropout_prob: 0.4
+      use_batch_norm: false
+      output_mode: trace
+      energy_min: 0.0
+      energy_max: 20.0
+      integration_lower_bound: band_gap
+      thickness_um: 0.1
+      temperature_k: 300.0
+      radiative_fraction: 1.0
+      voltage_points: 2000
+    target: ascending
+    minv: 0.0
+    maxv: 350.0
+    weight: 0.0
+
+  - name: tsenn_slme_optimate_voc
+    calculator:
+      _target_: rewards.calculators.TSENNSLME
+      root_dir: rewards/tsenn_slme_optimate_voc
+      task: voc
+      model_path: ${hydra:runtime.cwd}/data/dielectric/e3_dielectric_optimate_DDP_Lmax2_Lr0.01_bs24_em128_layers4_mul64_best.torch
+      device: ${device}
+      batch_size: 64
+      r_max: 6.0
+      out_dim: 201
+      em_dim: 128
+      lmax: 2
+      layers: 4
+      mul: 64
+      num_neighbors: 38.85585538243254
+      scale_0e: 7.948065
+      dropout_prob: 0.4
+      use_batch_norm: false
+      output_mode: trace
+      energy_min: 0.0
+      energy_max: 20.0
+      integration_lower_bound: band_gap
+      thickness_um: 0.1
+      temperature_k: 300.0
+      radiative_fraction: 1.0
+      voltage_points: 2000
+    target: ascending
+    minv: 0.0
+    maxv: 2.5
+    weight: 0.0
+
+reward_threshold: 0.5
+reduce: weight
