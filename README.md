@@ -47,6 +47,17 @@ python scripts/download_assets.py --all  # also the ~8.6 GB caches (only needed 
 Groups: **core** (run the experiments), **cached** (re-train surrogates), **optional** (also in git).
 Env knobs: `SPARC_HF_REPO`, `SPARC_HF_REPO_TYPE`, `SPARC_SKIP_ASSET_DOWNLOAD`, `HF_HUB_OFFLINE`.
 
+**Air-gapped compute nodes:** SPARC also pulls a few *third-party* weights on first use — the
+MatterSim potential + a MatterGen reference dataset (in the structure filter) and the ALIGNN
+band-gap weights. These download automatically when online. If your GPU nodes have no internet
+but share `~/.cache/huggingface` (and the repo) with an internet-connected login node, warm
+everything once on the login node, then run jobs offline:
+```bash
+python scripts/download_assets.py     # SPARC assets -> repo paths
+python scripts/warm_caches.py         # third-party MatterSim / MatterGen / ALIGNN weights
+# then in the job:  export HF_HUB_OFFLINE=1 SPARC_SKIP_ASSET_DOWNLOAD=1
+```
+
 ## 3. Quickstart smoke test
 ```bash
 source scripts/env.sh        # sets PROJECT_ROOT (required) + runtime dirs
