@@ -27,7 +27,7 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--n", type=int, default=128)
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--model", default="runtime/symmcd_pretrained/mp_20")
+    ap.add_argument("--model", default="data/symmcd_pretrained/mp_20")
     a = ap.parse_args()
 
     model, _ = _load_symmcd_model(a.model)

@@ -59,7 +59,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["models*", "pipeline*", "rewards*", "memory*", "symmcd*", "utils*"]
+include = ["models*", "pipeline*", "rewards*", "memory*", "utils*"]
 
 # --- uv resolver settings ---
 # SPARC is a Linux/CUDA-only project: restrict resolution to Linux so the cu118 wheels

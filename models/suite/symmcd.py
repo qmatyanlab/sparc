@@ -36,11 +36,11 @@ EPS = 1e-4 * np.random.randn(3)
 POINT = np.array([0.5, 0.5, 0.5]) + EPS
 
 _SYMMCD_MODEL_TARGETS = {
-    "symmcd.pl_modules.diffusion.CSPDiffusion": "symmcd.pl_modules.diffusion",
-    "symmcd.pl_modules.diffusion_w_type.CSPDiffusion": "symmcd.pl_modules.diffusion_w_type",
-    "symmcd.pl_modules.diffusion_w_site_symm.CSPDiffusion": "symmcd.pl_modules.diffusion_w_site_symm",
-    "symmcd.pl_modules.discrete_diffusion_w_site_symm.CSPDiffusion": "symmcd.pl_modules.discrete_diffusion_w_site_symm",
-    "symmcd.pl_modules.model.CrystGNN_Supervise": "symmcd.pl_modules.model",
+    "models.symmcd.pl_modules.diffusion.CSPDiffusion": "models.symmcd.pl_modules.diffusion",
+    "models.symmcd.pl_modules.diffusion_w_type.CSPDiffusion": "models.symmcd.pl_modules.diffusion_w_type",
+    "models.symmcd.pl_modules.diffusion_w_site_symm.CSPDiffusion": "models.symmcd.pl_modules.diffusion_w_site_symm",
+    "models.symmcd.pl_modules.discrete_diffusion_w_site_symm.CSPDiffusion": "models.symmcd.pl_modules.discrete_diffusion_w_site_symm",
+    "models.symmcd.pl_modules.model.CrystGNN_Supervise": "models.symmcd.pl_modules.model",
 }
 
 
@@ -209,7 +209,7 @@ class _MatInventSampleDataset(Dataset):
         train_path: Optional[str] = None,
         sg_info_path: Optional[str] = None,
     ):
-        from symmcd.common.data_utils import get_spacegroup_binary_repr
+        from models.symmcd.common.data_utils import get_spacegroup_binary_repr
         from utils.assets import resolve_path
 
         if sg_info_path:

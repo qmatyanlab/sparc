@@ -6,9 +6,9 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Export environment variables
 export PROJECT_ROOT="${PROJECT_ROOT}"
-export HYDRA_JOBS="${PROJECT_ROOT}/runtime/hydra_jobs"
-export WANDB_DIR="${PROJECT_ROOT}/runtime/wandb"
-export WANDB_CACHE_DIR="${PROJECT_ROOT}/runtime/wandb_cache"
+export HYDRA_JOBS="${PROJECT_ROOT}/exp_res/hydra_jobs"
+export WANDB_DIR="${PROJECT_ROOT}/exp_res/wandb"
+export WANDB_CACHE_DIR="${PROJECT_ROOT}/exp_res/wandb_cache"
 export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
 
 # Create necessary directories if they don't exist
@@ -32,7 +32,7 @@ python main.py \
   logger=csv \
   eval_size=12 \
   rl_epoch=30 \
-  model.model_path=${PROJECT_ROOT}/runtime/symmcd_pretrained/mp_20 \
+  model.model_path=${PROJECT_ROOT}/data/symmcd_pretrained/mp_20 \
   model.sample_cfg.generation_batch_size=128 \
   model.sample_cfg.sg_temperature=3.0 \
   model.finetune_cfg.lr=1e-5 \

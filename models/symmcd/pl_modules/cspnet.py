@@ -8,7 +8,7 @@ import torch.nn as nn
 from torch_geometric.utils import dense_to_sparse
 from torch_scatter import scatter
 
-from symmcd.common.data_utils import (
+from models.symmcd.common.data_utils import (
     lattice_ks_to_matrix_torch,
     radius_graph_pbc,
     repeat_blocks,

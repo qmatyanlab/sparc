@@ -87,10 +87,10 @@ def _reg(group: str, *paths: str) -> None:
 # SymmCD pretrained base checkpoint (required for any SymmCD run)
 _reg(
     "core",
-    "runtime/symmcd_pretrained/mp_20/hparams.yaml",
-    "runtime/symmcd_pretrained/mp_20/epoch=0-step=0.ckpt",
-    "runtime/symmcd_pretrained/mp_20/lattice_scaler.pt",
-    "runtime/symmcd_pretrained/mp_20/prop_scaler.pt",
+    "data/symmcd_pretrained/mp_20/hparams.yaml",
+    "data/symmcd_pretrained/mp_20/epoch=0-step=0.ckpt",
+    "data/symmcd_pretrained/mp_20/lattice_scaler.pt",
+    "data/symmcd_pretrained/mp_20/prop_scaler.pt",
 )
 # MP-20 sampling statistics + datasets
 _reg(
@@ -124,11 +124,11 @@ _reg(
 # Small files also shipped in git (redundant safety net)
 _reg(
     "optional",
-    "onehot_data/type_onehot.torch",
-    "onehot_data/mass_onehot.torch",
-    "onehot_data/dipole_onehot.torch",
-    "onehot_data/radius_onehot.torch",
-    "onehot_data/type_encoding.torch",
+    "data/onehot/type_onehot.torch",
+    "data/onehot/mass_onehot.torch",
+    "data/onehot/dipole_onehot.torch",
+    "data/onehot/radius_onehot.torch",
+    "data/onehot/type_encoding.torch",
     "data/dielectric/e3_band_gap_inference_config.yaml",
     "data/dielectric/e3_dielectric_optimate_inference_config.yaml",
 )

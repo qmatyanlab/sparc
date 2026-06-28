@@ -15,7 +15,7 @@ import torch
 from omegaconf import OmegaConf
 from pyxtal.symmetry import Group
 
-from symmcd.pl_modules.diff_utils import BetaScheduler
+from models.symmcd.pl_modules.diff_utils import BetaScheduler
 
 
 DEFAULT_MARGINALS_PATH = Path("data/mp_20/train_site_symm_marginals_per_sg.pt")

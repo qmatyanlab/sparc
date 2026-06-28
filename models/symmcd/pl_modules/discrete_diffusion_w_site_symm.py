@@ -15,14 +15,14 @@ import torch.nn.functional as F
 from torch_geometric.utils import to_dense_batch
 from torch_scatter import scatter
 
-from symmcd.common.data_utils import (
+from models.symmcd.common.data_utils import (
     lattice_ks_to_matrix_torch,
     lattice_params_to_matrix_torch,
     mask_ks,
     sg_to_ks_mask,
 )
-from symmcd.pl_modules.diff_utils import d_log_p_wrapped_normal
-from symmcd.pl_modules.model import build_mlp
+from models.symmcd.pl_modules.diff_utils import d_log_p_wrapped_normal
+from models.symmcd.pl_modules.model import build_mlp
 
 
 MAX_ATOMIC_NUM = 94

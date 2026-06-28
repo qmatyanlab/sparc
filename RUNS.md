@@ -8,7 +8,7 @@ Run catalog for SPARC. All commands run from the SPARC root (`/home/angush/sparc
 ```
 # Set by sourcing scripts/env.sh:
 #   $PYTHON       — .venv/bin/python
-#   $MODEL_PATH   — runtime/symmcd_pretrained/mp_20
+#   $MODEL_PATH   — data/symmcd_pretrained/mp_20
 ```
 
 ---

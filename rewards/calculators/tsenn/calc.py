@@ -127,7 +127,7 @@ def load_or_build_onehot(root_dir: str, dtype: torch.dtype = torch.float64):
     candidate_dirs = [
         shared_cache_dir,
         root_dir,
-        os.path.join(project_root, "onehot_data"),
+        os.path.join(project_root, "data", "onehot"),
     ]
 
     seen = set()
