@@ -34,6 +34,7 @@ data/mp_20/*.csv
 data/dielectric/*.torch
 data/dielectric/cached_*.pt
 data/symmcd_pretrained/
+data/surrogates/*.torch
 rewards/calculators/tsenn/*.torch
 rewards/calculators/syn_score/model_pt/
 rewards/tsenn_cache/

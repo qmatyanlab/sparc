@@ -20,7 +20,7 @@ prop_cfg:
       _target_: rewards.calculators.TSENNSLME
       root_dir: rewards/tsenn_slme_eta
       task: eta
-      model_path: ${hydra:runtime.cwd}/rewards/calculators/tsenn/optuna_trial_30_best.torch
+      model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_dielectric_tensor_spectra.torch
       device: ${device}
       r_max: 6.0
       out_dim: 300
@@ -48,7 +48,7 @@ prop_cfg:
       _target_: rewards.calculators.TSENNSLME
       root_dir: rewards/tsenn_slme_jsc
       task: jsc
-      model_path: ${hydra:runtime.cwd}/rewards/calculators/tsenn/optuna_trial_30_best.torch
+      model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_dielectric_tensor_spectra.torch
       device: ${device}
       r_max: 6.0
       out_dim: 300
@@ -75,7 +75,7 @@ prop_cfg:
       _target_: rewards.calculators.TSENNSLME
       root_dir: rewards/tsenn_slme_voc
       task: voc
-      model_path: ${hydra:runtime.cwd}/rewards/calculators/tsenn/optuna_trial_30_best.torch
+      model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_dielectric_tensor_spectra.torch
       device: ${device}
       r_max: 6.0
       out_dim: 300

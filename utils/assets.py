@@ -109,10 +109,10 @@ _reg(
 # Reward surrogate models
 _reg(
     "core",
-    "data/dielectric/e3_dielectric_optimate_DDP_Lmax2_Lr0.01_bs24_em128_layers4_mul64_best.torch",
-    "data/dielectric/indep_e3_dielectric_DDP_Lmax2_Lr0.01_bs16_em64_layers2_mul32_best.torch",
-    "data/dielectric/optuna_bandgap_trial_2_gpu0_best.torch",
-    "rewards/calculators/tsenn/optuna_trial_30_best.torch",
+    "data/surrogates/TSENN_dielectric_spectra.torch",
+    "data/surrogates/TSENN_static_dielectric_tensor.torch",
+    "data/surrogates/TSENN_bandgap.torch",
+    "data/surrogates/TSENN_dielectric_tensor_spectra.torch",
 )
 # Preprocessed training caches (only to RE-TRAIN the surrogates)
 _reg(
@@ -129,8 +129,8 @@ _reg(
     "data/onehot/dipole_onehot.torch",
     "data/onehot/radius_onehot.torch",
     "data/onehot/type_encoding.torch",
-    "data/dielectric/e3_band_gap_inference_config.yaml",
-    "data/dielectric/e3_dielectric_optimate_inference_config.yaml",
+    "data/surrogates/TSENN_bandgap.yaml",
+    "data/surrogates/TSENN_dielectric_spectra.yaml",
 )
 
 

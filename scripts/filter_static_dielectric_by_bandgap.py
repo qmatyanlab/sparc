@@ -35,8 +35,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-DEFAULT_MODEL = ROOT / "data/dielectric/optuna_bandgap_trial_2_gpu0_best.torch"
-DEFAULT_CONFIG = ROOT / "data/dielectric/e3_band_gap_inference_config.yaml"
+DEFAULT_MODEL = ROOT / "data/surrogates/TSENN_bandgap.torch"
+DEFAULT_CONFIG = ROOT / "data/surrogates/TSENN_bandgap.yaml"
 ONEHOT_CACHE = ROOT / "rewards/tsenn_cache"
 
 

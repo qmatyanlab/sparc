@@ -36,7 +36,7 @@ prop_cfg:
       _target_: rewards.calculators.TSENNSLME
       root_dir: rewards/tsenn_slme_optimate_eta
       task: eta
-      model_path: ${hydra:runtime.cwd}/data/dielectric/e3_dielectric_optimate_DDP_Lmax2_Lr0.01_bs24_em128_layers4_mul64_best.torch
+      model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_dielectric_spectra.torch
       device: ${device}
       batch_size: 64
       r_max: 6.0
@@ -68,7 +68,7 @@ prop_cfg:
       _target_: rewards.calculators.TSENNSLME
       root_dir: rewards/tsenn_slme_optimate_jsc
       task: jsc
-      model_path: ${hydra:runtime.cwd}/data/dielectric/e3_dielectric_optimate_DDP_Lmax2_Lr0.01_bs24_em128_layers4_mul64_best.torch
+      model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_dielectric_spectra.torch
       device: ${device}
       batch_size: 64
       r_max: 6.0
@@ -99,7 +99,7 @@ prop_cfg:
       _target_: rewards.calculators.TSENNSLME
       root_dir: rewards/tsenn_slme_optimate_voc
       task: voc
-      model_path: ${hydra:runtime.cwd}/data/dielectric/e3_dielectric_optimate_DDP_Lmax2_Lr0.01_bs24_em128_layers4_mul64_best.torch
+      model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_dielectric_spectra.torch
       device: ${device}
       batch_size: 64
       r_max: 6.0

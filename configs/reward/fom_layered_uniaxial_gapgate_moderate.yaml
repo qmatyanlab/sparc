@@ -21,7 +21,7 @@ prop_cfg:
       _target_: rewards.calculators.TSENNStaticDielectric
       root_dir: rewards/tsenn_static_dielectric_layered_uniaxial
       task: static_dielectric
-      model_path: ${hydra:runtime.cwd}/data/dielectric/indep_e3_dielectric_DDP_Lmax2_Lr0.01_bs16_em64_layers2_mul32_best.torch
+      model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_static_dielectric_tensor.torch
       device: ${device}
       batch_size: 16
       r_max: 6.0
@@ -47,8 +47,8 @@ prop_cfg:
       _target_: rewards.calculators.E3NNBandGap
       root_dir: rewards/bandgap
       task: band_gap
-      model_path: ${hydra:runtime.cwd}/data/dielectric/optuna_bandgap_trial_2_gpu0_best.torch
-      config_path: ${hydra:runtime.cwd}/data/dielectric/e3_band_gap_inference_config.yaml
+      model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_bandgap.torch
+      config_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_bandgap.yaml
       device: ${device}
       batch_size: 256
       silent: true

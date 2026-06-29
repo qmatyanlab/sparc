@@ -42,7 +42,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="cuda")
     parser.add_argument(
         "--model-path",
-        default="data/dielectric/indep_e3_dielectric_DDP_Lmax2_Lr0.01_bs16_em64_layers2_mul32_best.torch",
+        default="data/surrogates/TSENN_static_dielectric_tensor.torch",
     )
     parser.add_argument("--output-dir", type=Path, default=None)
     return parser.parse_args()

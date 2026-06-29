@@ -127,7 +127,7 @@ def parse_args() -> argparse.Namespace:
     base.add_argument(
         "--config",
         type=Path,
-        default=ROOT / "data/dielectric/e3_band_gap_inference_config.yaml",
+        default=ROOT / "data/surrogates/TSENN_bandgap.yaml",
     )
     config_args, _ = base.parse_known_args()
     defaults = _load_config_defaults(config_args.config)
@@ -144,7 +144,7 @@ def parse_args() -> argparse.Namespace:
         "--model",
         type=Path,
         default=defaults.get(
-            "model", ROOT / "data/dielectric/optuna_bandgap_trial_2_gpu0_best.torch"
+            "model", ROOT / "data/surrogates/TSENN_bandgap.torch"
         ),
     )
     parser.add_argument(

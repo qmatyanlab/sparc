@@ -1,7 +1,7 @@
 {
   "arch": "TSENN_full_tensor",
   "cache_pt": "rewards/calculators/tsenn/cached_auxiliary_preprocessed_data.pt",
-  "checkpoint_path": "rewards/calculators/tsenn/optuna_trial_30_best.torch",
+  "checkpoint_path": "data/surrogates/TSENN_dielectric_tensor_spectra.torch",
   "constrain_2e": false,
   "dropout_prob": 0.4,
   "em_dim": 128,

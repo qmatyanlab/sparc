@@ -46,9 +46,9 @@ from data.dielectric.utils.utils_model_scalar import Network  # noqa: E402
 torch.set_default_dtype(_prev_default_dtype)
 
 _DEFAULT_MODEL = os.path.join(
-    _PROJECT_ROOT, "data/dielectric/optuna_bandgap_trial_2_gpu0_best.torch")
+    _PROJECT_ROOT, "data/surrogates/TSENN_bandgap.torch")
 _DEFAULT_CONFIG = os.path.join(
-    _PROJECT_ROOT, "data/dielectric/e3_band_gap_inference_config.yaml")
+    _PROJECT_ROOT, "data/surrogates/TSENN_bandgap.yaml")
 
 
 class _NetWrapper(Network):

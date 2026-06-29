@@ -192,7 +192,7 @@ def _predict_trace_spectra(optimate_df: pd.DataFrame, row_indices: list[int]) ->
         task="tsenn_dielectric",
         model_path=str(
             ROOT
-            / "data/dielectric/e3_dielectric_optimate_DDP_Lmax2_Lr0.01_bs24_em128_layers4_mul64_best.torch"
+            / "data/surrogates/TSENN_dielectric_spectra.torch"
         ),
         device="cpu",
         batch_size=16,
