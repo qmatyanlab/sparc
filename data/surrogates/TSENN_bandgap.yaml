@@ -10,8 +10,8 @@ model:
   num_neighbors: 55.328226741470544
 
 inference:
-  checkpoint_path: optuna_bandgap_trial_2_gpu0_best.torch
-  cache_path: cached_band_gap_preprocessed_data.pt
+  checkpoint_path: TSENN_bandgap.torch
+  cache_path: data/dielectric/cached_band_gap_preprocessed_data.pt
   device: cuda
   batch_size: 256
   num_workers: 0

@@ -1,0 +1,29 @@
+# Model card: TSENN STATIC dielectric tensor surrogate
+# Predicts the static (zero-frequency) dielectric tensor (full symmetric 3x3; out_dim=1).
+# Loaded by rewards.calculators.TSENNStaticDielectric (configs/reward/tsenn_static_dielectric*.yaml,
+# fom_layered_uniaxial_*.yaml). Architecture params match what those reward configs pass at load time.
+model:
+  in_dim: 118
+  out_dim: 1
+  output_mode: tensor     # full 3x3 tensor -> irreps_out "1x0e + 1x2e"
+  em_dim: 64
+  layers: 2
+  mul: 32
+  lmax: 2
+  r_max: 6.0
+  num_neighbors: 59.902574690065045
+  scale_0e: 8.20143833581954
+  scale_2e: 0.6969301341467804
+  dropout_prob: 0.4
+  use_batch_norm: false
+
+training:
+  ddp: true
+  lr: 0.01
+  batch_size: 16
+  original_name: indep_e3_dielectric_DDP_Lmax2_Lr0.01_bs16_em64_layers2_mul32_best.torch
+
+inference:
+  checkpoint_path: TSENN_static_dielectric_tensor.torch
+  device: cuda
+  batch_size: 16

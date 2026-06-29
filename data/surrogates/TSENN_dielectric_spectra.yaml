@@ -1,21 +1,30 @@
+# Model card: TSENN dielectric SPECTRA surrogate ("optimate")
+# Predicts the isotropic (trace) imaginary dielectric spectrum eps2(omega), used for the SLME
+# efficiency (eta) reward. Loaded by rewards.calculators.TSENNSLME -> TSENN.
+# These architecture params match what the reward configs (configs/reward/tsenn_slme_optimate*.yaml)
+# pass at load time, so they MUST match the trained weights.
 model:
   in_dim: 118
+  out_dim: 201
+  output_mode: trace      # trace (isotropic) spectrum -> irreps_out "201x0e"
   em_dim: 128
   layers: 4
   mul: 64
-  lmax: 3
+  lmax: 2
+  r_max: 6.0
+  num_neighbors: 38.85585538243254
+  scale_0e: 7.948065
   dropout_prob: 0.4
   use_batch_norm: false
 
+training:
+  ddp: true
+  lr: 0.01
+  batch_size: 24
+  dataset_cache: data/dielectric/cached_dielectric_spectra_preprocessed_data.pt
+  original_name: e3_dielectric_optimate_DDP_Lmax2_Lr0.01_bs24_em128_layers4_mul64_best.torch
+
 inference:
-  # checkpoint_path: model/e3_dielectric_optimate_DDP_Lmax2_Lr0.01_bs24_em128_layers4_mul64_best.torch
-  checkpoint_path: model/e3_dielectric_optimate_DDP_Lmax3_Lr0.01_bs24_em128_layers4_mul64_best.torch
-  cache_path: dataset/cached_dielectric_spectra_preprocessed_data.pt
+  checkpoint_path: TSENN_dielectric_spectra.torch
   device: cuda
   batch_size: 64
-  num_workers: 0
-  seed: 3407
-  samples_per_split: 4
-
-outputs:
-  artifact_dir: pngs/e3_dielectric_optimate_inference

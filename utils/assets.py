@@ -129,8 +129,6 @@ _reg(
     "data/onehot/dipole_onehot.torch",
     "data/onehot/radius_onehot.torch",
     "data/onehot/type_encoding.torch",
-    "data/surrogates/TSENN_bandgap.yaml",
-    "data/surrogates/TSENN_dielectric_spectra.yaml",
 )
 
 
