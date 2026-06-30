@@ -303,7 +303,7 @@ def _ehull_lookup(run_dir: Path, step: int, formula: str, nsites: int | None = N
     return float(sub["energy_above_hull_ev_per_atom"].min())
 
 
-def _symmetry_view(struct, symprec: float = 0.1):
+def _symmetry_view(struct, symprec: float = 0.01):
     """Conventional standard cell + a rotation that looks straight down the principal
     symmetry axis + a space-group label. Reveals the symmetry better than the raw
     (P1-written) primitive cell viewed at an arbitrary tilt."""

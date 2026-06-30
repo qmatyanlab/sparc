@@ -44,7 +44,7 @@ class TSENNStaticDielectric(Calculator):
         component_i: int = 0,
         component_j: int = 0,
         standardize_structure: str = "none",
-        standardize_symprec: float = 0.1,
+        standardize_symprec: float = 0.01,
     ) -> None:
         super().__init__(root_dir, task)
         self.root_path = Path(self.root_dir).resolve()

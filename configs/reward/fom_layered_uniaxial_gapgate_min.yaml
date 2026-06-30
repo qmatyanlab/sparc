@@ -45,7 +45,7 @@ prop_cfg:
       use_batch_norm: false
       scalar_mode: layered_uniaxial
       standardize_structure: refined
-      standardize_symprec: 0.1
+      standardize_symprec: 0.01
     target: ascending
     minv: 0.0
     maxv: 0.20

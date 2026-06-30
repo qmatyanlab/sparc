@@ -333,7 +333,7 @@ def _vesta_atoms(struct, view, margin: float = 0.45):
       `nb` cells along b, so the layers -- which lie PERPENDICULAR to c -- read as
       wide horizontal sheets instead of the old one-atom-wide vertical sliver. `nb`
       is auto-sized so the tall c-axis slab roughly fills a portrait panel."""
-    conv = SpacegroupAnalyzer(struct, symprec=0.1).get_conventional_standard_structure()
+    conv = SpacegroupAnalyzer(struct, symprec=0.01).get_conventional_standard_structure()
     atoms = AseAtomsAdaptor.get_atoms(conv)
     cell = np.array(atoms.cell)
     frac = atoms.get_scaled_positions(wrap=True)

@@ -248,7 +248,7 @@ class MatInvent(ReinL):
         )
 
     def _extract_realized_spacegroup(self, structure: Structure) -> int | None:
-        symprec = float(self.adaptive_sg_cfg.get("symprec", 0.1))
+        symprec = float(self.adaptive_sg_cfg.get("symprec", 0.01))
         try:
             return int(
                 SpacegroupAnalyzer(structure, symprec=symprec).get_space_group_number()

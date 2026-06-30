@@ -134,7 +134,7 @@ def calc_mcia(
         np.ndarray[float]: computed MCIA
     """
     sa = SubstrateAnalyzer(film_max_miller=1, substrate_max_miller=1)
-    substrate = SpacegroupAnalyzer(substrate, symprec=0.1).get_conventional_standard_structure()
+    substrate = SpacegroupAnalyzer(substrate, symprec=0.01).get_conventional_standard_structure()
 
     sub_comp = substrate.composition.reduced_formula
     if substrate_millers is None and sub_comp in SUB_MILLERS:
@@ -143,7 +143,7 @@ def calc_mcia(
     mcia_list = []
     for struc in struc_list:
         try:
-            film = SpacegroupAnalyzer(struc, symprec=0.1).get_conventional_standard_structure()
+            film = SpacegroupAnalyzer(struc, symprec=0.01).get_conventional_standard_structure()
             matches = sa.calculate(
                 film=film,
                 substrate=substrate,

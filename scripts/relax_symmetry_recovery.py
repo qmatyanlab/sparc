@@ -50,7 +50,7 @@ def sg(structure, symprec):
         return None
 
 
-def rmsd_to_parent(structure, symprec=0.1):
+def rmsd_to_parent(structure, symprec=0.01):
     """RMSD (A) between structure and its own symmetry-refined cell."""
     try:
         refined = SpacegroupAnalyzer(structure, symprec=symprec).get_refined_structure()

@@ -99,7 +99,7 @@ def main() -> None:
         np.fill_diagonal(dm, np.inf)
         dmin = float(dm.min())
         try:
-            sga = SpacegroupAnalyzer(st, symprec=0.1)
+            sga = SpacegroupAnalyzer(st, symprec=0.01)
             conv = sga.get_conventional_standard_structure()
             sg_sym, sg_no = sga.get_space_group_symbol(), sga.get_space_group_number()
         except Exception:  # noqa: BLE001

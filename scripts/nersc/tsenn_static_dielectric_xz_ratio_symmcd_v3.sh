@@ -38,7 +38,7 @@ cd "${PROJECT_ROOT}"
     sample_cfg.adaptive_spacegroup.reward_scale=3.0 \
     sample_cfg.adaptive_spacegroup.prior_mix=0.3 \
     sample_cfg.adaptive_spacegroup.min_prob=1.0e-4 \
-    +sample_cfg.adaptive_spacegroup.symprec=0.1 \
+    +sample_cfg.adaptive_spacegroup.symprec=0.01 \
     model.finetune_cfg.lr=3e-5 \
     pipeline.topk_ratio=0.5 \
     pipeline.finetune_cfg.sigma=0.025 \

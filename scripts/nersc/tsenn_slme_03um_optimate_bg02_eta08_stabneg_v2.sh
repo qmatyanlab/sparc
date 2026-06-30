@@ -63,7 +63,7 @@ cd "${PROJECT_ROOT}"
     sample_cfg.adaptive_spacegroup.prior_mix=0.1 \
     sample_cfg.adaptive_spacegroup.min_prob=1.0e-4 \
     +sample_cfg.adaptive_spacegroup.mix_previous_distribution=true \
-    +sample_cfg.adaptive_spacegroup.symprec=0.1 \
+    +sample_cfg.adaptive_spacegroup.symprec=0.01 \
     sample_cfg.filter.penalize_unstable=true \
     pipeline.finetune_cfg.advantage_baseline=mean \
     pipeline.finetune_cfg.n_hard_negatives=8 \

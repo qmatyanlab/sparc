@@ -89,8 +89,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--symprec",
         type=float,
-        default=0.1,
-        help="Symmetry tolerance for realized SG detection and refinement (default: 0.1).",
+        default=0.01,
+        help="Symmetry tolerance for realized SG detection and refinement (default: 0.01).",
     )
     parser.add_argument(
         "--eps-num",

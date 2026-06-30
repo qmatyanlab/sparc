@@ -55,7 +55,7 @@ cd "${PROJECT_ROOT}"
     sample_cfg.adaptive_spacegroup.prior_mix=0.1 \
     sample_cfg.adaptive_spacegroup.min_prob=1.0e-4 \
     +sample_cfg.adaptive_spacegroup.mix_previous_distribution=true \
-    +sample_cfg.adaptive_spacegroup.symprec=0.1 \
+    +sample_cfg.adaptive_spacegroup.symprec=0.01 \
     +sample_cfg.adaptive_spacegroup.initial_distribution_csv="${ADAPTIVE_SG_CSV}" \
     reward.prop_cfg.1.calculator.energy_max=20.0 \
     reward.prop_cfg.1.calculator.integration_lower_bound=band_gap \

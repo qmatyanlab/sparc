@@ -18,7 +18,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("exp_dir", type=Path)
     parser.add_argument("--output-dir", type=Path, default=None)
-    parser.add_argument("--symprec", type=float, default=0.1)
+    parser.add_argument("--symprec", type=float, default=0.01)
     parser.add_argument("--top-sg", type=int, default=15)
     parser.add_argument("--step", type=int, default=None)
     return parser.parse_args()
