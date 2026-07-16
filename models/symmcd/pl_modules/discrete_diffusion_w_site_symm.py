@@ -334,12 +334,19 @@ def modify_frac_coords(traj, spacegroups, num_repr):
         [],
     )
     min_ss_dists, wp_projection_dists = [], []
+    # Representative (asymmetric-unit) snapshot M', collected only for the KEPT crystals so it
+    # aligns 1:1 with the expanded outputs below. Used by the RL fine-tune to re-noise M'
+    # (the space the reverse-diffusion sampler acted on) instead of the orbit-expanded cell M.
+    repr_frac_coords, repr_atom_types, repr_site_symm, repr_num_atoms = [], [], [], []
     for index in range(len(num_repr)):
         if num_repr[index] > 0:
+            rep_fc = traj["frac_coords"][total_atoms : total_atoms + num_repr[index]]
+            rep_ss = traj["site_symm"][total_atoms : total_atoms + num_repr[index]]
+            rep_at = traj["atom_types"][total_atoms : total_atoms + num_repr[index]]
             outputs = modify_frac_coords_one(
-                traj["frac_coords"][total_atoms : total_atoms + num_repr[index]],
-                traj["site_symm"][total_atoms : total_atoms + num_repr[index]],
-                traj["atom_types"][total_atoms : total_atoms + num_repr[index]],
+                rep_fc,
+                rep_ss,
+                rep_at,
                 spacegroups[index],
             )
             (
@@ -357,6 +364,12 @@ def modify_frac_coords(traj, spacegroups, num_repr):
                 updated_site_symm.append(new_site_symm)
                 min_ss_dists.append(min_ss_dist)
                 wp_projection_dists.append(wp_projection_dist)
+                repr_frac_coords.append(rep_fc.detach().cpu())
+                repr_atom_types.append(rep_at.detach().cpu())
+                repr_site_symm.append(
+                    rep_ss.reshape(-1, SITE_SYMM_AXES, SITE_SYMM_PGS).detach().cpu()
+                )
+                repr_num_atoms.append(int(num_repr[index]))
         total_atoms += num_repr[index]
 
     traj["frac_coords"] = torch.cat(
@@ -371,6 +384,18 @@ def modify_frac_coords(traj, spacegroups, num_repr):
     )
     traj["min_ss_dists"] = min_ss_dists
     traj["wp_projection_dists"] = wp_projection_dists
+    traj["representative"] = {
+        "frac_coords": torch.cat(repr_frac_coords).to(device)
+        if repr_frac_coords
+        else torch.zeros((0, 3), device=device),
+        "atom_types": torch.cat(repr_atom_types).to(device)
+        if repr_atom_types
+        else torch.zeros((0, traj["atom_types"].shape[-1]), device=device),
+        "site_symm": torch.cat(repr_site_symm).to(device)
+        if repr_site_symm
+        else torch.zeros((0, SITE_SYMM_AXES, SITE_SYMM_PGS), device=device),
+        "num_atoms": torch.tensor(repr_num_atoms, device=device, dtype=torch.long),
+    }
     return traj
 
 
@@ -776,4 +801,5 @@ class CSPDiffusion(BaseModule):
         traj[0]["ks"] = traj[0]["ks"][(1 - empty_crystals).bool()]
         traj[0]["lattices"] = traj[0]["lattices"][(1 - empty_crystals).bool()]
         traj[0] = modify_frac_coords(traj[0], batch.spacegroup, traj[0]["num_atoms"])
-        return traj[0], {}
+        representative = traj[0].pop("representative", None)
+        return traj[0], {"representative": representative}

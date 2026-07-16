@@ -308,8 +308,18 @@ def _is_valid_structure_inputs(
 def _split_generation_output(
     outputs: dict,
     input_batch,
+    representative: Optional[dict] = None,
+    use_representative: bool = False,
 ) -> Tuple[List[Data], List[Structure]]:
-    """Split a batched SymmCD sample() output into individual Data + Structure."""
+    """Split a batched SymmCD sample() output into individual Data + Structure.
+
+    The ``Structure`` list (reward + relaxation + validity/stability filtering) is ALWAYS built
+    from the orbit-expanded full cell M. When ``use_representative`` is set and a
+    ``representative`` snapshot is provided, each fine-tune ``Data`` record instead carries the
+    representative / asymmetric-unit tensors M' (aligned 1:1 with the expanded crystals), so the
+    RL fine-tune re-noises the same representation the reverse-diffusion sampler acted on.
+    Per-crystal fields (ks / lattice / spacegroup / sg_condition) are identical for M and M'.
+    """
     num_atoms = outputs["num_atoms"]
     frac_coords = outputs["frac_coords"]
     atom_types = outputs["atom_types"]
@@ -332,6 +342,21 @@ def _split_generation_output(
         [torch.zeros(1, dtype=torch.long), torch.cumsum(num_atoms.cpu(), dim=0)]
     )
 
+    # Representative (M') per-atom tensors for the fine-tune Data, if requested + available.
+    use_repr = use_representative and representative is not None
+    if use_repr:
+        repr_num = representative["num_atoms"].detach().cpu()
+        repr_frac = representative["frac_coords"].detach().cpu()
+        repr_atoms = representative["atom_types"].detach().cpu()
+        repr_symm = representative["site_symm"].detach().cpu()
+        if len(repr_num) != B:
+            # Must align 1:1 with the expanded crystals; otherwise fall back to M.
+            use_repr = False
+        else:
+            repr_offsets = torch.cat(
+                [torch.zeros(1, dtype=torch.long), torch.cumsum(repr_num, dim=0)]
+            )
+
     data_list: List[Data] = []
     structure_list: List[Structure] = []
 
@@ -345,6 +370,7 @@ def _split_generation_output(
         lengths_t = lengths[i].detach().cpu().unsqueeze(0).float()
         angles_t = angles[i].detach().cpu().unsqueeze(0).float()
 
+        # Structure (reward / relax / filters) is always the expanded cell M.
         structure = None
         if _is_valid_structure_inputs(fc, at, lengths_t[0], angles_t[0]):
             try:
@@ -366,21 +392,37 @@ def _split_generation_output(
             except Exception:
                 structure = None
 
+        # Fine-tune Data: representative M' when requested, else the expanded cell M.
+        if use_repr:
+            rs = int(repr_offsets[i].item())
+            re_ = int(repr_offsets[i + 1].item())
+            d_frac = repr_frac[rs:re_].float()
+            d_atoms = _normalize_atom_types(repr_atoms[rs:re_])
+            d_symm = repr_symm[rs:re_]
+            d_num = int(repr_num[i].item())
+        else:
+            d_frac = fc
+            d_atoms = at
+            d_symm = (
+                site_symm[start:end].detach().cpu() if site_symm is not None else None
+            )
+            d_num = n
+
         kwargs = dict(
-            frac_coords=fc,
-            atom_types=at,
+            frac_coords=d_frac,
+            atom_types=d_atoms,
             lengths=lengths_t,
             angles=angles_t,
-            num_atoms=torch.LongTensor([n]),
-            num_nodes=n,
+            num_atoms=torch.LongTensor([d_num]),
+            num_nodes=d_num,
             spacegroup=int(spacegroups[i].item()),
         )
         if ks is not None:
             kwargs["ks"] = ks[i].detach().cpu().unsqueeze(0)
         if sg_condition is not None:
             kwargs["sg_condition"] = sg_condition[i]
-        if site_symm is not None:
-            kwargs["site_symm"] = site_symm[start:end].detach().cpu()
+        if d_symm is not None:
+            kwargs["site_symm"] = d_symm
 
         data_list.append(Data(**cast(dict[str, Any], kwargs)))
         structure_list.append(structure)
@@ -404,6 +446,7 @@ class SymmCDSampler:
         restrict_spacegroups: Optional[List[int]] = None,
         generation_batch_size: int = 64,
         sg_temperature: float = 1.0,
+        finetune_on_representative: bool = False,
     ) -> None:
         self.model_path = model_path
         self.dataset = dataset
@@ -411,6 +454,9 @@ class SymmCDSampler:
         self.restrict_spacegroups = restrict_spacegroups
         self.generation_batch_size = generation_batch_size
         self.sg_temperature = sg_temperature
+        # When True, the fine-tune Data carries the representative (asym-unit) M' that the
+        # reverse-diffusion sampler acted on, instead of the orbit-expanded cell M.
+        self.finetune_on_representative = bool(finetune_on_representative)
 
     def _resolve_dataset_paths(self, model) -> tuple[str, str]:
         cfg = getattr(model, "_sparc_hparams_cfg", None)
@@ -502,8 +548,13 @@ class SymmCDSampler:
         with torch.no_grad():
             for batch in loader:
                 batch = batch.to(device)
-                outputs, _ = model.sample(batch, step_lr=self.step_lr)
-                batch_data, batch_structures = _split_generation_output(outputs, batch)
+                outputs, extra = model.sample(batch, step_lr=self.step_lr)
+                batch_data, batch_structures = _split_generation_output(
+                    outputs,
+                    batch,
+                    representative=(extra or {}).get("representative"),
+                    use_representative=self.finetune_on_representative,
+                )
                 all_data.extend(batch_data)
                 all_structures.extend(batch_structures)
 
@@ -560,6 +611,9 @@ class SymmCDSuite(ModelSuite):
             restrict_spacegroups=restrict or None,
             generation_batch_size=int(self.sample_cfg.get("generation_batch_size", 64)),
             sg_temperature=float(self.sample_cfg.get("sg_temperature", 1.0)),
+            finetune_on_representative=bool(
+                self.sample_cfg.get("finetune_on_representative", False)
+            ),
         )
 
     def get_dataloader(self, *args, **kwargs) -> DataLoader:
