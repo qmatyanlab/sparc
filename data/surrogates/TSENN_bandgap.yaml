@@ -1,3 +1,8 @@
+# TSENN_bandgap.torch = retrained full-Materials-Project MAE-loss E3NN band-gap model
+# (indep_e3_band_gap_DDP_Lmax2_Lr0.0015_bs16_em128_layers4_mul16_lossMAE_best; test MAE 0.233 eV / R^2 0.896),
+# swapped in 2026-07-14 (old optuna model backed up as TSENN_bandgap_optuna_old.torch, num_neighbors 55.328).
+# NOTE pre-flight: this model does NOT expel Mn-F (predicts systematically lower across the board; Mn-F
+# still scores ~0.50 tent). ALIGNN (run 55836484) remains the validated Mn-F fix. See memory notes.
 model:
   in_dim: 118
   em_dim: 128
@@ -7,7 +12,7 @@ model:
   dropout_prob: 0.0
   use_batch_norm: false
   r_max: 6.0
-  num_neighbors: 55.328226741470544
+  num_neighbors: 63.4   # full-MP retrain neighbor-normalization (was 55.328226741470544 for optuna)
 
 inference:
   checkpoint_path: TSENN_bandgap.torch

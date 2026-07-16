@@ -37,17 +37,22 @@ import torch
 from collections import Counter
 from plot_run import moving_average
 from plot_run_story_composite import _load_reward_series, _plot_reward
-from matplotlib.ticker import PercentFormatter
+from matplotlib.ticker import FuncFormatter, PercentFormatter
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+
+# light-grey mark for the in-target region (was salmon "#fb9a99"); grey needs a
+# touch more alpha than salmon did to read as a shaded band under the viridis points
+_TARGET_SHADE = "#d9d9d9"
+_TARGET_ALPHA = 0.55
 
 
 def _bg_eta(ax, name, bg, eta, zmax, sq_x, sq_y, eta_min, show_ylabel):
     """(band gap, eta) scatter: KDE-coloured points, shaded target region, and a
     single legend carrying N, in-target%% and the SQ limit (no stray annotations)."""
     from scipy.stats import gaussian_kde
-    ax.fill_between(sq_x, eta_min, sq_y, where=(sq_y > eta_min), color="#fb9a99",
-                    alpha=0.30, lw=0)
+    ax.fill_between(sq_x, eta_min, sq_y, where=(sq_y > eta_min), color=_TARGET_SHADE,
+                    alpha=_TARGET_ALPHA, lw=0)
     ax.plot(sq_x, sq_y, "k--", lw=1.2)
     if bg.size >= 5:
         try:
@@ -63,15 +68,19 @@ def _bg_eta(ax, name, bg, eta, zmax, sq_x, sq_y, eta_min, show_ylabel):
     frac = 100.0 * ((eta > eta_min) & (eta <= cap)).mean() if bg.size else 0.0
     ax.set_xlim(-0.05, 4.0); ax.set_ylim(0, 0.40)
     ax.set_xticks([0, 1, 2, 3, 4]); ax.set_yticks([0.05, 0.15, 0.25, 0.35])
-    ax.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
+    # bare tick numbers (the unit lives in the axis label "SLME eta (%)"); and hide the
+    # y-tick labels on the Steered panel, which shares the y-axis with Prior.
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v * 100:.0f}"))
     ax.set_xlabel("Band gap (eV)")
     if show_ylabel:
         ax.set_ylabel(r"SLME $\eta$ (%)")
+    else:
+        ax.tick_params(labelleft=False)
     ax.set_title(name, fontsize=13)
     ax.legend(handles=[
         Line2D([0], [0], marker="o", color="none", markerfacecolor="#4c4c4c",
                markersize=5, label=f"N = {bg.size}"),
-        Patch(facecolor="#fb9a99", alpha=0.30, label=f"In target region: {frac:.0f}%"),
+        Patch(facecolor=_TARGET_SHADE, alpha=_TARGET_ALPHA, label=f"In target region: {frac:.0f}%"),
         Line2D([0], [0], color="black", ls="--", lw=1.2, label="SQ limit"),
     ], loc="upper right", fontsize=8.5, handlelength=1.3, handletextpad=0.5,
         labelspacing=0.3, borderaxespad=0.3)
@@ -91,20 +100,21 @@ def _ema_debiased(x, w):
     return out
 
 
-def _plot_reward_ema(ax, steps, reward, window):
+def _plot_reward_ema(ax, steps, reward, window, max_step=None):
     """TensorBoard-style: faint raw reward trace + bold exponential moving average
     (debiased, span≈`window`), no band. EMA is defined at every point, so the line
-    runs cleanly to the last step with no truncated-window endpoint artifact."""
+    runs cleanly to the last step with no truncated-window endpoint artifact.
+    `max_step` caps the x-axis (the plateaued/drifting tail is cut for display)."""
     fin = np.isfinite(reward)
     s, r = steps[fin], reward[fin]
     ema = _ema_debiased(r, (window - 1) / (window + 1))   # span-`window` decay
     ax.plot(s, r, color="0.78", lw=0.8, label="Reward mean (raw)", zorder=1)
     ax.plot(s, ema, color="black", lw=2.0, label=f"EMA (span {window})", zorder=3)
     ax.set_xlabel("RL step"); ax.set_ylabel("Reward mean")
-    ax.set_xlim(s.min(), s.max() + 1)            # 120 steps (0–119) -> axis to 120
+    xhi = s.max() + 1 if max_step is None else min(s.max() + 1, max_step)
+    ax.set_xlim(s.min(), xhi)
     ylo, yhi = ax.get_ylim()
     ax.set_ylim(ylo, yhi + 0.18 * (yhi - ylo))       # headroom for legend / labels
-    ax.set_title("Mean reward vs RL step", fontsize=13, pad=6)
     ax.legend(loc="upper center", ncol=1, fontsize=12, framealpha=0.9,
               handlelength=1.3, borderaxespad=0.3)
 
@@ -145,7 +155,13 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--window", type=int, default=5, help="reward moving-average window")
     p.add_argument("--win-steps", type=int, default=10, help="steps per early/best window")
     p.add_argument("--top", type=int, default=10, help="space groups in the (c) bar panel")
+    p.add_argument("--max-step", type=int, default=None,
+                   help="cap the (a) reward x-axis at this RL step (trims the drifting tail)")
     p.add_argument("--target-eta-min", type=float, default=0.25)
+    p.add_argument("--steered-window", type=int, nargs=2, default=None, metavar=("LO", "HI"),
+                   help="override the EMA-peak steered window with an explicit [LO, HI) step range "
+                        "(e.g. --steered-window 48 58 for a late/condensed region when the reward "
+                        "peaks early but the chemistry keeps evolving)")
     p.add_argument("--output", type=Path, default=None)
     return p.parse_args()
 
@@ -175,6 +191,8 @@ def main() -> None:
     if hi > max_step + 1:
         lo -= hi - (max_step + 1); hi = max_step + 1
     steered_rng = (max(0, lo), hi)
+    if args.steered_window is not None:
+        steered_rng = (int(args.steered_window[0]), int(args.steered_window[1]))
 
     # ---- (b) bg/eta for the two windows
     e_bg, e_eta = load_bg_eta(run_dir, early_rng)
@@ -214,7 +232,9 @@ def main() -> None:
     fig = plt.figure(figsize=(15.0, 9.2))
     outer = GridSpec(1, 2, width_ratios=[1.05, 1.0], wspace=0.12, figure=fig)
     left = outer[0].subgridspec(2, 1, height_ratios=[1.15, 0.85], hspace=0.34)
-    bsub = left[1].subgridspec(1, 2, wspace=0.32)
+    # small wspace: the two scatters share the y-axis (Steered hides its tick labels),
+    # so they can sit close together and each span more width to fill the (b) row
+    bsub = left[1].subgridspec(1, 2, wspace=0.08)
     # right: (c) two periodic tables stacked vertically, then (d) SG bars
     right = outer[1].subgridspec(2, 1, height_ratios=[1.35, 0.75], hspace=0.28)
     csub = right[0].subgridspec(2, 1, hspace=0.08)
@@ -229,7 +249,7 @@ def main() -> None:
     ax_sg = fig.add_subplot(botsub[1])
 
     # (a) reward: raw + EMA (no truncated-window endpoint artifact) + colour bands
-    _plot_reward_ema(ax_reward, steps, reward, args.window)
+    _plot_reward_ema(ax_reward, steps, reward, args.window, args.max_step)
     ylo_r, yhi_r = ax_reward.get_ylim()
     for rng, name, band, txt in ((early_rng, "Prior", C_PRIOR, "#1f6fb4"),
                                  (steered_rng, "Steered", C_STEER, "#d62728")):
@@ -252,7 +272,7 @@ def main() -> None:
     axR.text(6.5, 1.0, f"Steered\n(steps {best_steps[0]}–{best_steps[-1]})\n{n_steer} elements",
              ha="center", va="center", fontsize=11, linespacing=1.4)
     cbar = fig.colorbar(im, ax=[axL, axR], fraction=0.03, pad=0.02)
-    cbar.set_label("Fraction of structures (%)")
+    cbar.set_label("% of structures")
 
     # (c-bottom) space-group before/after
     x = np.arange(len(sgs))
@@ -261,7 +281,7 @@ def main() -> None:
     ax_sg.bar(x + 0.2, [100 * cb_[s] / nb for s in sgs], width=0.4, color=C_STEER,
               label="Steered")
     ax_sg.set_xticks(x); ax_sg.set_xticklabels([_hm(s) for s in sgs], rotation=35, ha="right")
-    ax_sg.set_ylabel("Fraction of structures (%)")
+    ax_sg.set_ylabel("% of structures")
     ax_sg.set_title(f"Top {len(sgs)} space groups")
     ax_sg.legend(loc="upper right")
 

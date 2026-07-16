@@ -36,8 +36,9 @@ import numpy as np
 import pandas as pd
 import torch
 from matplotlib.gridspec import GridSpec
+from matplotlib.legend_handler import HandlerBase
 from matplotlib.lines import Line2D
-from matplotlib.patches import Polygon
+from matplotlib.patches import Circle, Polygon
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 _SCRIPTS = _PROJECT_ROOT / "scripts"
@@ -259,12 +260,67 @@ def _incell_xy(struct: Structure):
     return xy, csp
 
 
+# glossy-sphere atom rendering (base disc + lighter offset core + white specular highlight),
+# matching the Fig-4 / crystals_nc look; used by both _atom (panels c-e) and _GlossyLegendHandler.
+_GLOSS_CORE_LIGHTEN = 0.30   # how far the core is pulled toward white
+_GLOSS_CORE_FRAC = 0.55      # core diameter as a fraction of the sphere
+_GLOSS_CORE_ALPHA = 0.38
+_GLOSS_SPEC_FRAC = 0.20      # white specular glint diameter fraction
+_GLOSS_SPEC_ALPHA = 0.70
+_GLOSS_CORE_OFF = (-0.26, 0.26)   # upper-left, in units of the sphere radius
+_GLOSS_SPEC_OFF = (-0.32, 0.32)
+
+
+def _gloss_core(color):
+    import matplotlib.colors as _mc
+    cr, cg, cb = _mc.to_rgb(color)
+    f = _GLOSS_CORE_LIGHTEN
+    return (cr + (1 - cr) * f, cg + (1 - cg) * f, cb + (1 - cb) * f)
+
+
 def _atom(ax, xy, color, size=200, ec="black", lw=0.9, alpha=1.0, symbol=None):
-    ax.plot(xy[0], xy[1], "o", ms=np.sqrt(size) * 1.5, mfc=color, mec=ec,
-            mew=lw, alpha=alpha, zorder=5)
+    """Glossy sphere: base disc + lighter offset core + white specular highlight. Highlights are
+    offset by a fraction of the marker radius via a points->inch transform so they track the sphere
+    at any marker size."""
+    from matplotlib.transforms import offset_copy
+    ms = np.sqrt(size) * 1.5                      # marker diameter in points
+    r = ms / 2.0
+
+    def _off(fx, fy):
+        return offset_copy(ax.transData, fig=ax.figure, x=fx * r / 72.0, y=fy * r / 72.0,
+                           units="inches")
+    core = _gloss_core(color)
+    ax.plot(xy[0], xy[1], "o", ms=ms, mfc=color, mec=ec, mew=lw, alpha=alpha, zorder=5)
+    ax.plot(xy[0], xy[1], "o", ms=ms * _GLOSS_CORE_FRAC, mfc=core, mec="none",
+            alpha=_GLOSS_CORE_ALPHA * alpha, zorder=5.1, transform=_off(*_GLOSS_CORE_OFF))
+    ax.plot(xy[0], xy[1], "o", ms=ms * _GLOSS_SPEC_FRAC, mfc="white", mec="none",
+            alpha=_GLOSS_SPEC_ALPHA * alpha, zorder=5.2, transform=_off(*_GLOSS_SPEC_OFF))
     if symbol is not None:
         ax.text(xy[0], xy[1], symbol, ha="center", va="center", fontsize=7,
                 fontweight="bold", color="white", zorder=6)
+
+
+class _GlossyLegendHandler(HandlerBase):
+    """Draw a legend key marker as a glossy sphere (base + lighter core + specular), using the
+    same recipe as _atom so the key matches the rendered atoms."""
+
+    def __init__(self, color, **kw):
+        super().__init__(**kw)
+        self.color = color
+
+    def create_artists(self, legend, orig_handle, xdescent, ydescent,
+                       width, height, fontsize, trans):
+        cx, cy = width / 2.0 - xdescent, height / 2.0 - ydescent
+        r = 0.62 * height
+        core = _gloss_core(self.color)
+        base = Circle((cx, cy), r, facecolor=self.color, edgecolor="black", lw=0.7, transform=trans)
+        corec = Circle((cx + _GLOSS_CORE_OFF[0] * r, cy + _GLOSS_CORE_OFF[1] * r),
+                       r * _GLOSS_CORE_FRAC, facecolor=core, edgecolor="none",
+                       alpha=_GLOSS_CORE_ALPHA, transform=trans)
+        spec = Circle((cx + _GLOSS_SPEC_OFF[0] * r, cy + _GLOSS_SPEC_OFF[1] * r),
+                      r * _GLOSS_SPEC_FRAC, facecolor="white", edgecolor="none",
+                      alpha=_GLOSS_SPEC_ALPHA, transform=trans)
+        return [base, corec, spec]
 
 
 def _draw_cell_poly(ax, cell, lw=1.0, color="0.45"):
