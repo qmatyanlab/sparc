@@ -41,3 +41,12 @@ rewards/tsenn_cache/
 
 # Intentionally tracked (small, needed at runtime): configs/**, *.yaml, data/onehot/**,
 # data/dielectric/utils/**, data/dielectric/*.yaml, rewards/calculators/tsenn_slme/data/**
+
+# Offline HF cache staged locally; junk sidecar file
+.hf_cache/
+dataset_data_range
+
+# active_learning subproject: track the CODE, ignore its data/artifacts blobs
+active_learning/artifacts/
+active_learning/data/
+active_learning/**/__pycache__/
