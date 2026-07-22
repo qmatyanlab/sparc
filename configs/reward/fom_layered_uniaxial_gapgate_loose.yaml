@@ -1,0 +1,56 @@
+# Layered-uniaxial dielectric Figure of Merit GATED by band gap -- LOOSENED gate variant.
+#
+# FoM = min( d_aniso , g_gap )   (reduce: min = conjunctive AND)
+#   d_aniso : TSENNStaticDielectric (layered_uniaxial), normalized ascending 0->0.20 (IDENTICAL to the min variant).
+#   g_gap   : E3NNBandGap, ascending ramp minv=0.3, maxv=0.8 -- LOOSENED from the [0.5,1.2] of
+#             fom_layered_uniaxial_gapgate_min.
+#
+# WHY loosened: the gap gate RAMP was identical [0.5,1.2] under both the old optuna band-gap model and the new
+# Alex-MP-20 retrain, but the new model predicts SYSTEMATICALLY LOWER gaps for the high-anisotropy layered
+# (van-der-Waals-like) dielectric structures. Under [0.5,1.2] the new model gated those uniaxial targets to ~0
+# reward (SG150/187/156/123 reward_ema collapsed 0.5-0.96 -> ~0), so the policy stopped condensing on uniaxial
+# space groups and drifted to low-symmetry accidental-anisotropy structures. Empirically the most-anisotropic
+# structures (score>0.25) have median new-model gap ~0.35 eV, piled in the 0.3-0.5 band this gate zeroed.
+# Lowering onset 0.5->0.3 (full credit by 0.8) re-admits them so the uniaxial layered materials can compete
+# again. Trade-off: re-admits near-metallic small-gap structures the strict gate rejected -- monitor for
+# triclinic/monoclinic leak and genuine-metal contamination.
+#
+# Band gap = the E3NN model in data/surrogates/TSENN_bandgap.torch (now the Alex-MP-20 MAE retrain), softplus-OFF
+# E3NNBandGap.
+_target_: rewards.reward.Reward
+
+root_dir: rewards
+reduce: min
+
+prop_cfg:
+  - name: tsenn_static_dielectric_layered_uniaxial
+    calculator:
+      _target_: rewards.calculators.TSENNStaticDielectric
+      root_dir: rewards/tsenn_static_dielectric_layered_uniaxial
+      task: static_dielectric
+      model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_static_dielectric_tensor.torch
+      config_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_static_dielectric_tensor.yaml
+      device: ${device}
+      batch_size: 16
+      scalar_mode: layered_uniaxial
+      standardize_structure: refined
+      standardize_symprec: 0.01
+    target: ascending
+    minv: 0.0
+    maxv: 0.20
+
+  - name: band_gap
+    calculator:
+      _target_: rewards.calculators.E3NNBandGap
+      root_dir: rewards/bandgap
+      task: band_gap
+      model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_bandgap.torch
+      config_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_bandgap.yaml
+      device: ${device}
+      batch_size: 256
+      silent: true
+    target: ascending
+    minv: 0.3
+    maxv: 0.8
+
+reward_threshold: 0.5

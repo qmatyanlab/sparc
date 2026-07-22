@@ -1,0 +1,25 @@
+# Model card: TSENN dielectric FULL-TENSOR SPECTRA surrogate.
+# Predicts the full 3x3 imaginary dielectric spectrum tensor eps2(omega) (300 energy points,
+# 0e+2e irreps), used by the older SLME (eta) / band-gap reward configs. Loaded by
+# rewards.calculators.TSENNSLME -> TSENN.
+# Arch params MUST match the trained weights (data/surrogates/TSENN_dielectric_tensor_spectra.torch);
+# derived from TSENN_dielectric_tensor_spectra.meta.json (arch TSENN_full_tensor, optuna_trial_30).
+model:
+  in_dim: 118
+  out_dim: 300
+  output_mode: tensor     # full tensor -> irreps_out "300x0e + 300x2e"
+  em_dim: 128
+  layers: 2
+  mul: 64
+  lmax: 2
+  r_max: 6.0
+  num_neighbors: 47.93693308232073
+  scale_0e: 9.654586159705472
+  scale_2e: 2.1930899418921146
+  dropout_prob: 0.4
+  use_batch_norm: false
+
+inference:
+  checkpoint_path: TSENN_dielectric_tensor_spectra.torch
+  device: cuda
+  batch_size: 64

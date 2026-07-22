@@ -21,18 +21,8 @@ prop_cfg:
       root_dir: rewards/tsenn_slme_eta
       task: eta
       model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_dielectric_tensor_spectra.torch
+      config_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_dielectric_tensor_spectra.yaml
       device: ${device}
-      r_max: 6.0
-      out_dim: 300
-      em_dim: 128
-      lmax: 2
-      layers: 2
-      mul: 64
-      num_neighbors: 47.93693308232073
-      scale_0e: 9.654586159705472
-      scale_2e: 2.1930899418921146
-      dropout_prob: 0.4
-      use_batch_norm: false
       thickness_um: 0.1
       temperature_k: 300.0
       radiative_fraction: 1.0
@@ -48,18 +38,8 @@ prop_cfg:
       root_dir: rewards/tsenn_slme_jsc
       task: jsc
       model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_dielectric_tensor_spectra.torch
+      config_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_dielectric_tensor_spectra.yaml
       device: ${device}
-      r_max: 6.0
-      out_dim: 300
-      em_dim: 128
-      lmax: 2
-      layers: 2
-      mul: 64
-      num_neighbors: 47.93693308232073
-      scale_0e: 9.654586159705472
-      scale_2e: 2.1930899418921146
-      dropout_prob: 0.4
-      use_batch_norm: false
       thickness_um: 0.1
       temperature_k: 300.0
       radiative_fraction: 1.0
@@ -75,18 +55,8 @@ prop_cfg:
       root_dir: rewards/tsenn_slme_voc
       task: voc
       model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_dielectric_tensor_spectra.torch
+      config_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_dielectric_tensor_spectra.yaml
       device: ${device}
-      r_max: 6.0
-      out_dim: 300
-      em_dim: 128
-      lmax: 2
-      layers: 2
-      mul: 64
-      num_neighbors: 47.93693308232073
-      scale_0e: 9.654586159705472
-      scale_2e: 2.1930899418921146
-      dropout_prob: 0.4
-      use_batch_norm: false
       thickness_um: 0.1
       temperature_k: 300.0
       radiative_fraction: 1.0

@@ -106,21 +106,14 @@ class E3NNBandGap(Calculator):
         self.model_path = str(resolve_path(model_path or _DEFAULT_MODEL))
         if not os.path.exists(self.model_path):
             raise FileNotFoundError(f"E3NN band-gap model not found: {self.model_path}")
-        cfg_path = str(resolve_path(config_path or _DEFAULT_CONFIG, optional=True))
-        mcfg = {}
-        if os.path.exists(cfg_path):
-            mcfg = (yaml.safe_load(open(cfg_path)) or {}).get("model", {}) or {}
-
-        def pick(arg, key, default):
-            return arg if arg is not None else mcfg.get(key, default)
-
-        self.em_dim = int(pick(em_dim, "em_dim", 128))
-        self.layers = int(pick(layers, "layers", 4))
-        self.mul = int(pick(mul, "mul", 16))
-        self.lmax = int(pick(lmax, "lmax", 2))
-        self.r_max = float(pick(r_max, "r_max", 6.0))
-        self.num_neighbors = float(pick(num_neighbors, "num_neighbors",
-                                        55.328226741470544))
+        mcfg = self.load_model_cfg(config_path, _DEFAULT_CONFIG)
+        self.em_dim = int(self.pick(mcfg, em_dim, "em_dim", 128))
+        self.layers = int(self.pick(mcfg, layers, "layers", 4))
+        self.mul = int(self.pick(mcfg, mul, "mul", 16))
+        self.lmax = int(self.pick(mcfg, lmax, "lmax", 2))
+        self.r_max = float(self.pick(mcfg, r_max, "r_max", 6.0))
+        self.num_neighbors = float(self.pick(mcfg, num_neighbors, "num_neighbors",
+                                             55.328226741470544))
 
         self.model = _NetWrapper(
             in_dim=int(in_dim), em_dim=self.em_dim,

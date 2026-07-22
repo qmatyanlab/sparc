@@ -28,19 +28,9 @@ prop_cfg:
       root_dir: rewards/tsenn_slme_optimate_eta
       task: eta
       model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_dielectric_spectra.torch
+      config_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_dielectric_spectra.yaml
       device: ${device}
       batch_size: 64
-      r_max: 6.0
-      out_dim: 201
-      em_dim: 128
-      lmax: 2
-      layers: 4
-      mul: 64
-      num_neighbors: 38.85585538243254
-      scale_0e: 7.948065
-      dropout_prob: 0.4
-      use_batch_norm: false
-      output_mode: trace
       energy_min: 0.0
       energy_max: 20.0
       integration_lower_bound: band_gap
@@ -60,19 +50,9 @@ prop_cfg:
       root_dir: rewards/tsenn_slme_optimate_jsc
       task: jsc
       model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_dielectric_spectra.torch
+      config_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_dielectric_spectra.yaml
       device: ${device}
       batch_size: 64
-      r_max: 6.0
-      out_dim: 201
-      em_dim: 128
-      lmax: 2
-      layers: 4
-      mul: 64
-      num_neighbors: 38.85585538243254
-      scale_0e: 7.948065
-      dropout_prob: 0.4
-      use_batch_norm: false
-      output_mode: trace
       energy_min: 0.0
       energy_max: 20.0
       integration_lower_bound: band_gap
@@ -91,19 +71,9 @@ prop_cfg:
       root_dir: rewards/tsenn_slme_optimate_voc
       task: voc
       model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_dielectric_spectra.torch
+      config_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_dielectric_spectra.yaml
       device: ${device}
       batch_size: 64
-      r_max: 6.0
-      out_dim: 201
-      em_dim: 128
-      lmax: 2
-      layers: 4
-      mul: 64
-      num_neighbors: 38.85585538243254
-      scale_0e: 7.948065
-      dropout_prob: 0.4
-      use_batch_norm: false
-      output_mode: trace
       energy_min: 0.0
       energy_max: 20.0
       integration_lower_bound: band_gap
