@@ -27,10 +27,13 @@ sample_cfg:
     - [89, 100]
   filter:
     _target_: pipeline.filters.opt_filter.OptFilter
-    metrics:
-      - validity
-      - unique
-      - stable
+    # metrics default is relax-conditional (resolved in OptFilter.__init__ when null).
+    # `relax` is intentionally NOT set here so launchers can keep using `+sample_cfg.filter.relax=...`
+    # (a `+`-add fails if the key already exists); it defaults to True in OptFilter.__init__:
+    #   relax=true  -> [stable, unique, validity, novel]
+    #   relax=false -> [validity, unique, novel]   (no `stable`: e_hull needs relaxation)
+    # Set an explicit list here or via CLI to pin metrics.
+    metrics: null
     device: ${device}
     silent: True
     # When true, structures failing ONLY the e_hull `stable` gate are kept (tagged

@@ -500,7 +500,7 @@ def _normalize_energies(
 class OptFilter:
     def __init__(
         self,
-        metrics: List[str],
+        metrics: List[str] | None = None,
         relax: bool = True,
         silent: bool = True,
         device: str | None = None,
@@ -509,6 +509,12 @@ class OptFilter:
         penalize_unstable: bool = False,
         **kwargs,
     ) -> None:
+        # Default filter metrics depend on `relax`: without relaxation, e_hull (and thus the
+        # `stable` gate) is not computable (energies are NaN), so `stable` is excluded; with
+        # relaxation on, `stable` is included. Explicit `metrics=[...]` always overrides.
+        if metrics is None:
+            metrics = (["stable", "unique", "validity", "novel"] if relax
+                       else ["validity", "unique", "novel"])
         assert all(m in METRIC_LIST for m in metrics)
         self.metrics = metrics
         self.relax = relax
