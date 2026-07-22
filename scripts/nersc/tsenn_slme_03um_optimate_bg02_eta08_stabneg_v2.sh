@@ -21,7 +21,7 @@
 # provided" assertion. See [[session-checkpoint]] / [[slme-reward-functions]].
 #
 # Softening changes vs v1 (everything else identical to run A = 54346667):
-#   hard_negative_ratio=0.5  NEW cap (pipeline/mat_invent.py): negatives <= 0.5x
+#   hard_negative_ratio=0.5  NEW cap (pipeline/sparc.py): negatives <= 0.5x
 #                            the positive batch, so they can never dominate again.
 #   n_hard_negatives=8       lower ceiling (ratio cap does the real work).
 #   unstable_floor=0.1       milder penalty: with mean baseline ~0.3 the negative

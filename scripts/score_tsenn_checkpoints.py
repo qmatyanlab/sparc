@@ -95,7 +95,7 @@ def build_eval_pipeline(
     save_dir: Path,
     args: argparse.Namespace,
 ):
-    from pipeline.mat_invent import MatInvent
+    from pipeline.sparc import SPARC
 
     ensure_hydra_runtime_resolver(Path.cwd())
 
@@ -139,7 +139,7 @@ def build_eval_pipeline(
     if OmegaConf.select(pipeline_cfg, "df_args") is not None:
         df_args = OmegaConf.to_container(pipeline_cfg.df_args, resolve=True)
 
-    return MatInvent(
+    return SPARC(
         rl_epoch=1,
         model_suite=model_suite,
         reward=reward,

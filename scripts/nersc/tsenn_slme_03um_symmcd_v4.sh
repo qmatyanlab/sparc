@@ -24,7 +24,7 @@ cd "${PROJECT_ROOT}"
 
 "${PYTHON}" -u main.py \
     expname="${EXPNAME}" \
-    pipeline=mat_invent model=symmcd reward=tsenn_slme \
+    pipeline=sparc model=symmcd reward=tsenn_slme \
     logger=csv device=cuda \
     eval_size=30 rl_epoch=200 \
     pipeline.save_freq=10 \

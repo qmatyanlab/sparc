@@ -20,7 +20,7 @@ cd "${PROJECT_ROOT}"
 
 "${PYTHON}" -u main.py \
     expname="${EXPNAME}" \
-    pipeline=mat_invent model=symmcd reward=band_gap_gaussian \
+    pipeline=sparc model=symmcd reward=band_gap_gaussian \
     logger=csv device=cuda \
     eval_size=16 rl_epoch=200 \
     model.model_path="${MODEL_PATH}" \

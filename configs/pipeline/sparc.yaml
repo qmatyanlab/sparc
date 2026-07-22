@@ -1,4 +1,4 @@
-_target_: pipeline.mat_invent.SPARC
+_target_: pipeline.sparc.SPARC
 rl_epoch: ${rl_epoch}
 device: ${device}
 

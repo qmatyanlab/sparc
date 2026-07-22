@@ -76,7 +76,7 @@ def make_anchor(base: np.ndarray, kind: str) -> np.ndarray:
 
 
 def replay(base, stream, anchor_kind, scale, mix_previous, prior_mix):
-    """Mirror of pipeline.mat_invent.SPARC._update_adaptive_sg_policy."""
+    """Mirror of pipeline.sparc.SPARC._update_adaptive_sg_policy."""
     anchor = make_anchor(base, anchor_kind)
     support = anchor > 0
     ema = np.zeros(230)

@@ -151,8 +151,8 @@ def _normalize_sg_distribution(
     return dist / total
 
 
-class _MatInventSampleDataset(Dataset):
-    """MatInvent-owned SymmCD sampling dataset."""
+class _SPARCSampleDataset(Dataset):
+    """SPARC-owned SymmCD sampling dataset."""
 
     def __init__(
         self,
@@ -475,9 +475,9 @@ class SymmCDSampler:
         model,
         total_num: int,
         restrict_spacegroups: Optional[NDArray],
-    ) -> _MatInventSampleDataset:
+    ) -> _SPARCSampleDataset:
         train_path, sg_info_path = self._resolve_dataset_paths(model)
-        sample_dataset = _MatInventSampleDataset(
+        sample_dataset = _SPARCSampleDataset(
             dataset=self.dataset,
             total_num=total_num,
             train_ori_path=train_path,

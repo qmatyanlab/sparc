@@ -19,7 +19,7 @@ from rewards.reward import Reward
 from models.suite.base import ModelSuite
 
 
-class MatInvent(ReinL):
+class SPARC(ReinL):
     def __init__(
         self,
         rl_epoch: int,
@@ -940,7 +940,3 @@ class MatInvent(ReinL):
         logging.info("*****   RL END   *****")
         end_time = time.time()
         logging.info("Total time taken: {} s.".format(int(end_time - start_time)))
-
-
-class SPARC(MatInvent):
-    pass

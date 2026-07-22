@@ -2,7 +2,7 @@
 """Publication ablation figure: "equal reward, unequal symmetry".
 
 Under the SAME reward and RL settings, only the generator differs (SymmCD = ours,
-symmetry-constrained; DiffCSP = MatInvent, unconstrained). Both reach the same
+symmetry-constrained; DiffCSP = SPARC, unconstrained). Both reach the same
 reward, but only SymmCD produces the rotational symmetry a real material should
 possess (2/3/4/6-fold axes) -- and a post-hoc MLIP relaxation of the SAME
 generated structures cannot give DiffCSP the high-order (4-/6-fold) axes it lacks.

@@ -25,7 +25,7 @@ echo "  WANDB_CACHE_DIR=${WANDB_CACHE_DIR}"
 # Run the test command
 python main.py \
   expname=test \
-  pipeline=mat_invent \
+  pipeline=sparc \
   model=symmcd \
   reward=band_gap \
   device=cuda \
