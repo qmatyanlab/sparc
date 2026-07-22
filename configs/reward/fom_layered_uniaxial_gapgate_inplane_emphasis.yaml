@@ -1,0 +1,69 @@
+# Layered-uniaxial dielectric FoM GATED by band gap -- IN-PLANE EMPHASIS variant.
+#
+# FoM = min( d_aniso , g_gap )   (reduce: min = conjunctive AND)
+#   d_aniso : TSENNStaticDielectric (layered_uniaxial) with an EMPHASIZED in-plane isotropy
+#             penalty, normalized ascending 0->0.20 (ceiling unchanged from min/loose variants).
+#   g_gap   : E3NNBandGap, ascending ramp minv=0.3, maxv=0.8 (the LOOSE gate window).
+#
+# WHAT CHANGED vs fom_layered_uniaxial_gapgate_loose: ONLY the dielectric term's
+# `inplane_penalty_power` (1.0 -> 4.0). Everything else -- gate window, ceiling, min reduce,
+# standardization, both surrogates (config_path sidecars) -- is identical, so this is a clean
+# A/B against run 986 (loose gate, power=1.0).
+#
+# WHY: the layered_uniaxial scalar is
+#     layered_anisotropy * (1 - inplane_mismatch)^power,   scaled by /0.20 and clamped to 1.
+# With power=1.0 the in-plane penalty is only LINEAR and the 0.20 ceiling saturates early, so a
+# strongly biaxial (orthorhombic/monoclinic/triclinic) structure reaches the SAME full reward as
+# a perfectly uniaxial one -- uniaxial and biaxial TIE at the top, and the adaptive space-group
+# policy has nothing to condense toward (observed in 938/986: top_sg drifted to SG61 Pbcn, and
+# reward_ema piled on SG2 P-1 / SG14 monoclinic; SG entropy briefly dipped then rebounded --
+# transient condensation the flat reward could not hold). In-plane isotropy (eps_xx == eps_yy) is
+# symmetry-protected ONLY in the uniaxial crystal classes (trigonal/tetragonal/hexagonal); lower
+# symmetries can only APPROXIMATE it. EMPHASIZING that penalty (power>1) makes the approximation
+# cost real reward: biaxial structures fall BELOW the 0.20 ceiling while clean uniaxial ones still
+# saturate. The uniaxial classes become the unique sharp optimum, so reward-driven RL condenses
+# onto them WITHOUT any hard space-group whitelist (restrict_spacegroups stays empty -- the
+# concentration must emerge). power=4.0 verified: uniaxial reward 1.0, mildly-biaxial ~0.84,
+# strongly-biaxial ~0.40, cubic 0.0 (mild biaxial still saturates at power<=3 because the 0.20
+# ceiling is low). Tune power in {3,4,5}: higher = sharper peak but sparser early reward.
+#
+# Band gap = data/surrogates/TSENN_bandgap.torch (2026-07-14 full-MP retrain; HF sparc-assets now
+# serves this exact file, prior checkpoint preserved as TSENN_bandgap_old.torch), softplus-OFF.
+_target_: rewards.reward.Reward
+
+root_dir: rewards
+reduce: min
+
+prop_cfg:
+  - name: tsenn_static_dielectric_layered_uniaxial
+    calculator:
+      _target_: rewards.calculators.TSENNStaticDielectric
+      root_dir: rewards/tsenn_static_dielectric_layered_uniaxial
+      task: static_dielectric
+      model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_static_dielectric_tensor.torch
+      config_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_static_dielectric_tensor.yaml
+      device: ${device}
+      batch_size: 16
+      scalar_mode: layered_uniaxial
+      standardize_structure: refined
+      standardize_symprec: 0.01
+      inplane_penalty_power: 4.0
+    target: ascending
+    minv: 0.0
+    maxv: 0.20
+
+  - name: band_gap
+    calculator:
+      _target_: rewards.calculators.E3NNBandGap
+      root_dir: rewards/bandgap
+      task: band_gap
+      model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_bandgap.torch
+      config_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_bandgap.yaml
+      device: ${device}
+      batch_size: 256
+      silent: true
+    target: ascending
+    minv: 0.3
+    maxv: 0.8
+
+reward_threshold: 0.5

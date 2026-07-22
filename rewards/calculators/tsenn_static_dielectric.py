@@ -47,6 +47,7 @@ class TSENNStaticDielectric(Calculator):
         component_j: int = 0,
         standardize_structure: str = "none",
         standardize_symprec: float = 0.01,
+        inplane_penalty_power: float = 1.0,
     ) -> None:
         super().__init__(root_dir, task)
         self.root_path = Path(self.root_dir).resolve()
@@ -71,6 +72,10 @@ class TSENNStaticDielectric(Calculator):
                 f"{sorted(self.VALID_STANDARDIZE_MODES)}"
             )
         self.standardize_symprec = float(standardize_symprec)
+
+        self.inplane_penalty_power = float(inplane_penalty_power)
+        if self.inplane_penalty_power <= 0.0:
+            raise ValueError("inplane_penalty_power must be > 0.")
 
         if model_path is None:
             raise ValueError("TSENNStaticDielectric model_path must be provided.")
@@ -202,7 +207,14 @@ class TSENNStaticDielectric(Calculator):
             inplane_mismatch = np.abs(eps_xx - eps_yy) / (
                 np.abs(eps_xx) + np.abs(eps_yy) + 1e-8
             )
-            scalars = layered_anisotropy * (1.0 - inplane_mismatch)
+            # In-plane isotropy (eps_xx == eps_yy) is symmetry-protected only in the
+            # uniaxial crystal classes. Raising the (1 - mismatch) gate to a power > 1
+            # makes biaxial (orthorhombic/monoclinic/triclinic) structures fall below
+            # the reward ceiling while clean uniaxial ones still saturate, so RL can
+            # discover and condense onto the uniaxial family without a hard SG whitelist.
+            scalars = layered_anisotropy * (
+                (1.0 - inplane_mismatch) ** self.inplane_penalty_power
+            )
         else:
             scalars = valid_tensors[:, self.component_i, self.component_j]
 
