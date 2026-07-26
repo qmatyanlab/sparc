@@ -15,10 +15,9 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 source scripts/env.sh
 uv run python scripts/download_assets.py || true
 
-# Example: layered/uniaxial static-dielectric run with on-the-fly relaxation.
+# Example: in-plane-isotropy static-dielectric run (relaxation is on by default).
 uv run python main.py \
   expname=sparc_dielectric pipeline=sparc model=symmcd \
-  reward=fom_layered_uniaxial_gapgate_moderate logger=csv device=cuda \
-  eval_size=24 rl_epoch=200 seed=1 deterministic_torch=true \
-  model.model_path="${MODEL_PATH}" \
-  model.sample_cfg.filter.relax=true
+  reward=fom_inplane_isotropy_gapgate logger=csv device=cuda \
+  eval_size=30 rl_epoch=120 seed=1 deterministic_torch=true \
+  model.model_path="${MODEL_PATH}"

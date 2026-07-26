@@ -50,3 +50,6 @@ dataset_data_range
 active_learning/artifacts/
 active_learning/data/
 active_learning/**/__pycache__/
+
+
+figure4_cifs.tar.gz

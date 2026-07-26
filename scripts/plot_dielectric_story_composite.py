@@ -406,8 +406,8 @@ def _render_structure(ax, struct, title, side: bool = False, view: str | None = 
     rx, ry = x1 - x0, y1 - y0
     if view == "a":                            # zoom IN: tight crop so the slab fills it
         ml, mr, mb, mt = 0.03, 0.01, 0.16, 0.01  # (keep a bottom gap for the a/b/c triad)
-    elif view == "c":                          # zoom OUT: more padding around the cell
-        ml, mr, mb, mt = 0.38, 0.24, 0.32, 0.22
+    elif view == "c":                          # padding around the cell (kept a bottom gap for triad)
+        ml, mr, mb, mt = 0.22, 0.14, 0.24, 0.12
     elif not legend:
         ml = mr = mb = mt = 0.08               # no per-view legend -> tight crop
     elif side:
@@ -418,7 +418,7 @@ def _render_structure(ax, struct, title, side: bool = False, view: str | None = 
     ax.set_ylim(y0 - mb * ry, y1 + mt * ry)
     if triad:                       # drawn after the box/limits are final so the
         ax.apply_aspect()           # inch-based arrow lengths use the real axes box
-        org = (0.08, 0.15) if view == "a" else (0.10, 0.10)
+        org = (0.08, 0.15) if view == "a" else (0.03, 0.08)
         _axis_triad(ax, np.array(atoms.cell), rotation, origin=org, length_in=0.42)
     for s in ax.spines.values():  # no box around the structure render
         s.set_visible(False)
@@ -729,6 +729,34 @@ def _inplane_rotation_glyph(ax, ox, oy, s=1.0, relation=None):
                 ha="center", va="top", fontsize=FS_LABEL, color="0.1")
 
 
+def _detect_scalar_mode(run_dir) -> str:
+    """The dielectric calculator's scalar_mode from the run config (hparams.yaml or
+    .hydra/config.yaml), so the SAME script renders both the layered-uniaxial reward and
+    the inplane-isotropy reward with the correct schematic formula + tensor relation.
+    Defaults to 'layered_uniaxial' when nothing is found."""
+    import yaml
+    run_dir = Path(run_dir)
+    for cand in (run_dir / "hparams.yaml", run_dir / ".hydra" / "config.yaml"):
+        if not cand.exists():
+            continue
+        try:
+            cfg = yaml.safe_load(cand.read_text())
+        except Exception:  # noqa: BLE001
+            continue
+        if not isinstance(cfg, dict):
+            continue
+        props = (((cfg or {}).get("reward") or {}).get("prop_cfg")) or []
+        for prop in props:
+            if not isinstance(prop, dict):
+                continue
+            calc = prop.get("calculator") or {}
+            if "TSENNStaticDielectric" in str(calc.get("_target_", "")) or "scalar_mode" in calc:
+                mode = calc.get("scalar_mode")
+                if mode:
+                    return str(mode)
+    return "layered_uniaxial"
+
+
 def _draw_schematic(fig, ax, record, run_dir, after_step=None):
     """Left-column method schematic as a single TOP->BOTTOM flow, integrated with REAL
     space-group data:
@@ -744,6 +772,7 @@ def _draw_schematic(fig, ax, record, run_dir, after_step=None):
     BOX_CX, BOX_W = 0.40, 0.74          # x in [0.03, 0.77]
     colx = BOX_CX
     orange = "#ff7f0e"
+    scalar_mode = _detect_scalar_mode(run_dir)
 
     # ----- BEFORE: the uniform space-group anchor (feeds the generator; no SG dominates)
     prior = _load_sg_anchor(run_dir)
@@ -757,26 +786,38 @@ def _draw_schematic(fig, ax, record, run_dir, after_step=None):
                                 boxstyle="round,pad=0.004,rounding_size=0.02",
                                 facecolor="none", edgecolor="k", lw=1.4,
                                 zorder=2))
-    # plain black title on white (no filled header band -- the blue outline is enough)
-    ax.text(BOX_CX, 0.802, "SG-conditioned diffusion model  $p_\\theta(\\mathcal{M}|G)$",
-            ha="center", va="center", fontsize=FS_LABEL, color="0.1",
-            zorder=4)
     struct = Structure.from_str(record["cif"], fmt="cif")
-    ax.text(BOX_CX, 0.762,
-            f"${_latex_formula(str(record['formula']))}$  SG {record['spacegroup']}",
-            ha="center", va="bottom", fontsize=FS_LABEL, color="0.15")
-    # down c: in-plane symmetry.  down a: layer stacking edge-on (PORTRAIT box).
-    cax_c = ax.inset_axes([0.055, 0.582, 0.300, 0.150])
-    _render_structure(cax_c, struct, "", view="c", triad=True, legend=False)
-    cax_a = ax.inset_axes([0.452, 0.562, 0.300, 0.195])
-    _render_structure(cax_a, struct, "", view="a", triad=True, legend=False)
-    # one shared species key, centred under the two views
+    sg_tex = f"${_latex_formula(str(record['formula']))}$  SG {record['spacegroup']}"
+    if scalar_mode == "inplane_isotropy":
+        # big down-c view on the LEFT; model title + formula + species key stacked on the RIGHT
+        # so the crystal can fill the card (title/SG moved off the top).
+        cax_c = ax.inset_axes([0.075, 0.540, 0.40, 0.285])
+        _render_structure(cax_c, struct, "", view="c", triad=True, legend=False)
+        rx = 0.645
+        ax.text(rx, 0.775, "SG-conditioned\ndiffusion model\n$p_\\theta(\\mathcal{M}'|G)$",
+                ha="center", va="center", fontsize=FS_LABEL, color="0.1",
+                linespacing=1.35, zorder=4)
+        ax.text(rx, 0.638, sg_tex, ha="center", va="center", fontsize=FS_LABEL, color="0.15")
+        key_anchor, key_ncol = (rx, 0.572), 2
+    else:
+        # plain black title on white (no filled header band -- the outline is enough)
+        ax.text(BOX_CX, 0.802,
+                "SG-conditioned diffusion model  $p_\\theta(\\mathcal{M}'|G)$",
+                ha="center", va="center", fontsize=FS_LABEL, color="0.1", zorder=4)
+        ax.text(BOX_CX, 0.762, sg_tex, ha="center", va="bottom",
+                fontsize=FS_LABEL, color="0.15")
+        # down c: in-plane symmetry.  down a: layer stacking edge-on (PORTRAIT box).
+        cax_c = ax.inset_axes([0.055, 0.582, 0.300, 0.150])
+        _render_structure(cax_c, struct, "", view="c", triad=True, legend=False)
+        cax_a = ax.inset_axes([0.452, 0.562, 0.300, 0.195])
+        _render_structure(cax_a, struct, "", view="a", triad=True, legend=False)
+        key_anchor, key_ncol = (colx, 0.537), None
     nums = sorted({int(n) for n in AseAtomsAdaptor.get_atoms(struct).numbers})
     handles = [Line2D([0], [0], marker="o", ls="", markersize=8,
                       markerfacecolor=_species_color(n), markeredgecolor="0.3",
                       markeredgewidth=0.5, label=chemical_symbols[n]) for n in nums]
-    key = ax.legend(handles=handles, loc="center", bbox_to_anchor=(colx, 0.537),
-                    ncol=len(nums), frameon=False, fontsize=FS_LABEL,
+    key = ax.legend(handles=handles, loc="center", bbox_to_anchor=key_anchor,
+                    ncol=(key_ncol or len(nums)), frameon=False, fontsize=FS_LABEL,
                     handletextpad=0.2, columnspacing=0.8, borderpad=0.0,
                     borderaxespad=0.0)
     key.set_in_layout(False)
@@ -785,26 +826,35 @@ def _draw_schematic(fig, ax, record, run_dir, after_step=None):
     # ----- 3) predicted dielectric tensor + in-plane rotation glyph -----------------
     zz = float(record["eps_zz"])
     perp = 0.5 * (float(record["eps_xx"]) + float(record["eps_yy"]))
-    tlabel = "$\\varepsilon_{xx} = \\varepsilon_{yy} > \\varepsilon_{zz}$"
+    tlabel = ("$\\varepsilon_{xx} = \\varepsilon_{yy}$" if scalar_mode == "inplane_isotropy"
+              else "$\\varepsilon_{xx} = \\varepsilon_{yy} > \\varepsilon_{zz}$")
     tax = ax.inset_axes([0.305, 0.312, 0.215, 0.130])
     _plot_tensor(tax, _tensor_matrix(record), fs=FS_LABEL, title_fs=FS_LABEL)
     tax.set_xticks([])     # drop the bottom x/y/z labels so the reward arrow is clear
     # in-plane rotation symmetry glyph with the anisotropy relation below its caption
     _inplane_rotation_glyph(ax, 0.140, 0.400, s=0.95, relation=tlabel)
-    _varrow(ax, colx, 0.300, 0.262, r"compute reward $r(\mathcal{M})$")
+    _varrow(ax, colx, 0.300, 0.262, r"compute reward $r(\mathcal{M}')$")
 
-    # ----- 4) reward (the uniaxial-anisotropy objective) ----------------------------
-    # Full pure-math formula (no English prose): layered_uniaxial mode from
-    # rewards/calculators/tsenn_static_dielectric.py:189-200.  One line at 13 pt (it is
-    # only ~3.9 in wide vs the ~5.1 in box, so it fits comfortably).
+    # ----- 4) reward (the dielectric objective) -------------------------------------
+    # Full pure-math formula (no English prose), matched to the run's scalar_mode in
+    # rewards/calculators/tsenn_static_dielectric.py:209-250 (layered_uniaxial vs
+    # inplane_isotropy).  One line, sized to fit the ~5.1 in box.
     ax.add_patch(FancyBboxPatch((colx - BOX_W / 2, 0.180), BOX_W, 0.066,
                                 boxstyle="round,pad=0.004,rounding_size=0.018",
                                 facecolor="white", edgecolor="k", lw=1.4, zorder=3))
-    ax.text(colx, 0.213,
-            r"$r = \frac{|\varepsilon_{\parallel}-\varepsilon_{\perp}|}{|\varepsilon_{\parallel}|+|\varepsilon_{\perp}|}"
-            r"\!\left(1-\frac{|\varepsilon_{xx}-\varepsilon_{yy}|}{|\varepsilon_{xx}|+|\varepsilon_{yy}|}\right),"
-            r"\ \ \varepsilon_{\parallel} = \varepsilon_{zz},\ \varepsilon_{\perp} = \frac{1}{2}(\varepsilon_{xx}+\varepsilon_{yy})$",
-            ha="center", va="center", fontsize=_FS_BASE0 + 1, zorder=4)
+    if scalar_mode == "inplane_isotropy":
+        # keep the in-plane-isotropy term explicit; the out-of-plane gate is just the symbol
+        # g_z (its full clip definition can be expanded later).
+        ax.text(colx, 0.213,
+                r"$r = \left(1-\frac{|\varepsilon_{xx}-\varepsilon_{yy}|}{|\varepsilon_{xx}|+|\varepsilon_{yy}|}\right)"
+                r"\cdot g_{z}$",
+                ha="center", va="center", fontsize=_FS_BASE0 + 1, zorder=4)
+    else:
+        ax.text(colx, 0.213,
+                r"$r = \frac{|\varepsilon_{\parallel}-\varepsilon_{\perp}|}{|\varepsilon_{\parallel}|+|\varepsilon_{\perp}|}"
+                r"\!\left(1-\frac{|\varepsilon_{xx}-\varepsilon_{yy}|}{|\varepsilon_{xx}|+|\varepsilon_{yy}|}\right),"
+                r"\ \ \varepsilon_{\parallel} = \varepsilon_{zz},\ \varepsilon_{\perp} = \frac{1}{2}(\varepsilon_{xx}+\varepsilon_{yy})$",
+                ha="center", va="center", fontsize=_FS_BASE0 + 1, zorder=4)
     # unlabeled arrow -- the histogram title below ("reward-updated ...") names the result,
     # so a separate "update SG policy" caption would only collide with it.
     _varrow(ax, colx, 0.175, 0.137)
@@ -825,7 +875,7 @@ def _draw_schematic(fig, ax, record, run_dir, after_step=None):
     aax = ax.inset_axes([0.130, 0.044, 0.540, 0.070])
     _draw_sg_hist(aax, learned, orange,
                   "reward-updated SG distribution $\\pi^{(j)}$", show_xlabel=True,
-                  ylabel="$\\pi^{(j)}$")
+                  show_peak=False, ylabel="$\\pi^{(j)}$")
 
 
 def _draw_sg_panel(ax_dist, ranked, total, sgs, frac, dist_label, top):

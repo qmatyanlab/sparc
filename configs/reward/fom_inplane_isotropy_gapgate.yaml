@@ -1,0 +1,64 @@
+# In-plane-isotropy dielectric FoM GATED by band gap.
+#
+# FoM = min( d_inplane , g_gap )   (reduce: min = conjunctive AND)
+#   d_inplane : TSENNStaticDielectric (inplane_isotropy) = 1 - |eps_xx-eps_yy|/(|eps_xx|+|eps_yy|),
+#               i.e. targets ONLY the in-plane relation eps_xx == eps_yy (the signature of the
+#               in-plane rotation groups: trigonal/tetragonal/hexagonal + cubic). No z-anisotropy
+#               term. Normalized ascending over a TIGHT window (see minv/maxv note below).
+#   g_gap     : E3NNBandGap, ascending ramp 0.3 -> 0.8 (kept so candidates are non-metallic and
+#               worth DFT verification -- NECESSARY per the DFT-followup plan).
+#
+# WINDOW (minv/maxv) -- IMPORTANT: the raw score is in [0,1], but real in-plane mismatches are tiny
+#   (uniaxial EXACTLY 0 by symmetry; ortho/mono/tri only ~0.05-0.10), so the raw score clusters in
+#   [0.90,1.0]. A literal minv=0,maxv=1 is too flat -- everything scores >=0.9 and the gap gate always
+#   binds, so the in-plane term never discriminates. A TIGHT window makes it select:
+#     window [0.90,1.0] gives  tetra/trig/hex/CUBIC=1.00, tri=0.57, mono=0.48, ORTHO=0.35.
+#
+# CUBIC EXCLUSION via light z-anisotropy floor (z_anisotropy_floor): the score is multiplied by
+#   z_gate = min(1, layered_anisotropy / z_anisotropy_floor),  layered_anisotropy = |eps_zz-eps_perp|/(|eps_zz|+|eps_perp|).
+#   This is a FLOOR, not a slope: 1.0 as soon as there is real out-of-plane anisotropy (>= z_floor),
+#   ramping to 0 only near full isotropy -- so it excludes cubic (layered_anisotropy=0) WITHOUT
+#   re-rewarding the degree of z-anisotropy (which is what let orthorhombic compete). z_floor=0.01
+#   (LIGHT, verified): cubic -> 0 excluded; trig/tet/hex stay ~0.90 (only the near-isotropic uniaxial
+#   tail with z-aniso<0.01 is trimmed). Higher floors (0.05) over-penalize genuine uniaxial under the
+#   tight [0.9,1.0] window, so keep it small.
+#
+# Band gap = data/surrogates/TSENN_bandgap.torch (2026-07-14 full-MP retrain), softplus-OFF.
+_target_: rewards.reward.Reward
+
+root_dir: rewards
+reduce: min
+
+prop_cfg:
+  - name: tsenn_static_dielectric_inplane_isotropy
+    calculator:
+      _target_: rewards.calculators.TSENNStaticDielectric
+      root_dir: rewards/tsenn_static_dielectric_layered_uniaxial
+      task: static_dielectric
+      model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_static_dielectric_tensor.torch
+      config_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_static_dielectric_tensor.yaml
+      device: ${device}
+      batch_size: 16
+      scalar_mode: inplane_isotropy
+      standardize_structure: refined
+      standardize_symprec: 0.01
+      z_anisotropy_floor: 0.01
+    target: ascending
+    minv: 0.90
+    maxv: 1.00
+
+  - name: band_gap
+    calculator:
+      _target_: rewards.calculators.E3NNBandGap
+      root_dir: rewards/bandgap
+      task: band_gap
+      model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_bandgap.torch
+      config_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_bandgap.yaml
+      device: ${device}
+      batch_size: 256
+      silent: true
+    target: ascending
+    minv: 0.3
+    maxv: 0.8
+
+reward_threshold: 0.5

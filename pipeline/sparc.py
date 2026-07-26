@@ -878,10 +878,6 @@ class SPARC(ReinL):
         # below). n_hard_negatives=0 (default) keeps this inert => legacy behavior.
         n_hard = int(self.finetune_cfg.get("n_hard_negatives", 0))
         if n_hard > 0 and len(neg_data) > 0:
-            unstable_floor = float(self.finetune_cfg.get("unstable_floor", 0.0))
-            # cap negatives relative to the positive batch so they can't dominate the
-            # update (job 54523927 collapsed: 11 negatives vs 5 positives -> KL blow-up).
-            # hard_negative_ratio<=0 disables the cap (legacy: take up to n_hard).
             ratio = float(self.finetune_cfg.get("hard_negative_ratio", 0.5))
             cap = max(1, int(ratio * len(ft_data))) if ratio > 0 else len(neg_data)
             take = min(n_hard, len(neg_data), cap)

@@ -18,6 +18,7 @@ class TSENNStaticDielectric(Calculator):
         "component",
         "xz_ratio",
         "layered_uniaxial",
+        "inplane_isotropy",
     }
 
     VALID_STANDARDIZE_MODES = {"none", "conventional", "refined"}
@@ -48,6 +49,7 @@ class TSENNStaticDielectric(Calculator):
         standardize_structure: str = "none",
         standardize_symprec: float = 0.01,
         inplane_penalty_power: float = 1.0,
+        z_anisotropy_floor: float = 0.0,
     ) -> None:
         super().__init__(root_dir, task)
         self.root_path = Path(self.root_dir).resolve()
@@ -76,6 +78,14 @@ class TSENNStaticDielectric(Calculator):
         self.inplane_penalty_power = float(inplane_penalty_power)
         if self.inplane_penalty_power <= 0.0:
             raise ValueError("inplane_penalty_power must be > 0.")
+
+        # Light z-anisotropy floor for scalar_mode="inplane_isotropy": 0 disables it (pure in-plane
+        # score); >0 multiplies the score by min(1, layered_anisotropy / z_anisotropy_floor) so that
+        # fully-isotropic cubic (layered_anisotropy == 0) is excluded while any structure with modest
+        # out-of-plane anisotropy keeps full credit.
+        self.z_anisotropy_floor = float(z_anisotropy_floor)
+        if self.z_anisotropy_floor < 0.0:
+            raise ValueError("z_anisotropy_floor must be >= 0.")
 
         if model_path is None:
             raise ValueError("TSENNStaticDielectric model_path must be provided.")
@@ -215,6 +225,29 @@ class TSENNStaticDielectric(Calculator):
             scalars = layered_anisotropy * (
                 (1.0 - inplane_mismatch) ** self.inplane_penalty_power
             )
+        elif self.scalar_mode == "inplane_isotropy":
+            # Target ONLY the in-plane relation eps_xx == eps_yy (the signature of the in-plane
+            # rotation groups: trigonal/tetragonal/hexagonal + cubic). No z-anisotropy term, so
+            # this does NOT distinguish uniaxial (eps_zz != eps_perp) from fully isotropic cubic.
+            # Returns 1.0 when eps_xx == eps_yy (in-plane isotropic), lower as they diverge.
+            # In [0,1] already; use linear_scaling(minv,maxv) to set the discrimination window.
+            eps_xx = valid_tensors[:, 0, 0]
+            eps_yy = valid_tensors[:, 1, 1]
+            eps_zz = valid_tensors[:, 2, 2]
+            inplane_mismatch = np.abs(eps_xx - eps_yy) / (
+                np.abs(eps_xx) + np.abs(eps_yy) + 1e-8
+            )
+            scalars = 1.0 - inplane_mismatch
+            if self.z_anisotropy_floor > 0.0:
+                # Light floor: exclude fully-isotropic cubic (layered_anisotropy == 0) without
+                # re-rewarding the DEGREE of z-anisotropy. z_gate saturates to 1 once the
+                # out-of-plane anisotropy reaches z_anisotropy_floor.
+                eps_perp = 0.5 * (eps_xx + eps_yy)
+                layered_anisotropy = np.abs(eps_zz - eps_perp) / (
+                    np.abs(eps_zz) + np.abs(eps_perp) + 1e-8
+                )
+                z_gate = np.clip(layered_anisotropy / self.z_anisotropy_floor, 0.0, 1.0)
+                scalars = scalars * z_gate
         else:
             scalars = valid_tensors[:, self.component_i, self.component_j]
 

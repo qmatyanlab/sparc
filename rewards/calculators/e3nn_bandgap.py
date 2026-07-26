@@ -1,15 +1,13 @@
-"""E3NN band-gap calculator (drop-in replacement for the ALIGNN band-gap reward).
+"""E3NN band-gap calculator (the project's band-gap reward).
 
-Loads the project's own E3NN band-gap regressor (e.g. optuna_bandgap_trial_2) and
-predicts a scalar band gap per structure. Interface matches ALIGNN.calc so it can be
-swapped into the reward config or used as the SLME integration-lower-bound source.
+Loads the project's own E3NN band-gap regressor and predicts a scalar band gap per structure. Exposes the standard reward-calculator
+interface so it can be used in a reward config or as the SLME integration-lower-bound source.
 
 CRITICAL: this model MUST be run through the softplus-OFF Network
 (data.dielectric.utils.utils_model_scalar.Network) -- the TSENN Network applies
 _apply_softplus_to_0e to the 0e channel (positive-definiteness for the dielectric
 tensor), which the band-gap weights were trained WITHOUT. Running it with softplus on
 floors every prediction to softplus(0)=ln2~0.693 eV and destroys metal discrimination.
-Validated against the cached test split: MAE 0.19 eV, R^2 0.91.
 """
 from __future__ import annotations
 

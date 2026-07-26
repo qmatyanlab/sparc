@@ -20,6 +20,6 @@ uv run python scripts/download_assets.py || true
 # Example: headline SLME run. See README.md / RUNS.md for the full set of experiments.
 uv run python main.py \
   expname=sparc_slme pipeline=sparc model=symmcd \
-  reward=tsenn_slme_optimate_bg02_eta08 logger=csv device=cuda \
-  eval_size=30 rl_epoch=200 seed=1 deterministic_torch=true \
+  reward=tsenn_slme_optimate_bgcenter13_eta08_e3nngap logger=csv device=cuda \
+  eval_size=30 rl_epoch=120 seed=1 deterministic_torch=true \
   model.model_path="${MODEL_PATH}"

@@ -1,0 +1,25 @@
+# reward for target band gap = 3.0 eV (single property), scored with the project's own E3NN
+# band-gap surrogate (data/surrogates/TSENN_bandgap.torch) instead of ALIGNN. Drop-in E3NN
+# replacement for reward=band_gap; identical target 3.0 / minv 0 / maxv 2 scaling. Loaded through
+# rewards.calculators.E3NNBandGap (softplus-OFF) — the same gap model the dielectric/SLME runs use.
+_target_: rewards.reward.Reward
+
+root_dir: rewards
+
+prop_cfg:
+  - name: band_gap
+    calculator:
+      _target_: rewards.calculators.E3NNBandGap
+      root_dir: rewards/bandgap
+      task: band_gap
+      model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_bandgap.torch
+      config_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_bandgap.yaml
+      device: ${device}
+      batch_size: 256
+      silent: true
+    # target: 2.5 (float), descending, ascending
+    target: 3.0
+    minv: 0.0
+    maxv: 2.0
+
+reward_threshold: 0.875
