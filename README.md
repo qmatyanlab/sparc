@@ -1,19 +1,29 @@
-# SPARC — Symmetry- and Property-Aware Regularized Crystal generation
+# SPARC
 
-SPARC fine-tunes symmetry-aware crystal diffusion models (SymmCD / DiffCSP) with reinforcement
-learning to generate crystals optimized for target properties — band gap, dielectric response,
-and solar-cell efficiency (SLME) — scored by fast E3NN/ALIGNN surrogates with optional MLIP
-(MatterSim) relaxation.
+## Inverse Design of Crystal Symmetry from Target Physical Responses
+
+**S**ymmetry- and **P**roperty-**A**ware Crystal Generation with **R**einforcement Learning
+
+<p align="center">
+  <img src="assets/dielectric_story_animation.gif" width="820" alt="SPARC reinforcement-learning loop. A space-group-conditioned diffusion model is steered toward in-plane-isotropic dielectric crystals. During training, the reward increases and the sampled space-group distribution concentrates within uniaxial crystal families.">
+</p>
+
+SPARC inversely designs crystal symmetry from a desired physical response.
+
+The animation above presents our flagship example. The target is an in-plane-isotropic dielectric response, $\varepsilon_{xx}=\varepsilon_{yy}$. As the reward increases, the sampled space-group distribution concentrates within uniaxial crystal families. The model therefore discovers the crystal symmetries that are compatible with the target response.
+
+SPARC achieves this by fine-tuning the symmetry-aware crystal diffusion model SymmCD through reinforcement learning.
+
 
 > Paper: _add citation / link here._
 
 ## Repository layout
-- `main.py` — Hydra entry point (instantiates `pipeline.mat_invent.SPARC` and calls `run_rl`)
+- `main.py` — Hydra entry point (instantiates `pipeline.sparc.SPARC` and calls `run_rl`)
 - `configs/` — Hydra configs (`base.yaml`, `model/`, `pipeline/`, `reward/`, `logger/`)
-- `models/` — model suites (`suite/symmcd.py`, `suite/diffcsp.py`, `suite/mattergen.py`) + vendored model code
-- `symmcd/`, `pipeline/`, `rewards/`, `memory/` — diffusion model, RL loop, reward calculators, replay buffer
+- `models/` — model suites (`suite/symmcd.py`, `suite/diffcsp.py`, `suite/mattergen.py`) with the SymmCD diffusion model lives under `models/symmcd/`
+- `pipeline/`, `rewards/`, `memory/` — RL loop, reward calculators, replay buffer
 - `utils/assets.py` — auto-downloads large assets from HuggingFace on first use
-- `scripts/` — portable helpers; `scripts/nersc/` holds the author's original SLURM scripts (reference only)
+- `scripts/` — portable helpers + the dielectric run submit scripts (`scripts/dielectric_*_b96*.sbatch`); `scripts/nersc/` holds the author's original NERSC scripts (reference only)
 - `RUNS.md` — catalog of published runs and their commands
 
 ## 1. Install (single `uv` environment)
@@ -26,8 +36,8 @@ git clone git@github.com:AngusHsuPhys/sparc_v0.git
 cd sparc_v0
 uv sync --frozen
 ```
-This installs `torch 2.2.1+cu118`, PyG (`torch_scatter/sparse/cluster`), DGL, MatterGen (pinned
-to `v1.0.3`), the materials stack (pymatgen / ase / e3nn / alignn / atomate2 / mattersim), and
+This installs `torch 2.2.1+cu118`, PyG (`torch_scatter/sparse/cluster`), MatterGen (pinned
+to `v1.0.3`), the materials stack (pymatgen / ase / e3nn / atomate2 / mattersim), and
 `sparc` itself (editable). Then either `source .venv/bin/activate` or prefix commands with `uv run`.
 
 ## 2. Assets (auto-downloaded from HuggingFace)
@@ -47,14 +57,12 @@ python scripts/download_assets.py --all  # also the ~8.6 GB caches (only needed 
 Groups: **core** (run the experiments), **cached** (re-train surrogates), **optional** (also in git).
 Env knobs: `SPARC_HF_REPO`, `SPARC_HF_REPO_TYPE`, `SPARC_SKIP_ASSET_DOWNLOAD`, `HF_HUB_OFFLINE`.
 
-**Air-gapped compute nodes:** SPARC also pulls a few *third-party* weights on first use — the
-MatterSim potential + a MatterGen reference dataset (in the structure filter) and the ALIGNN
-band-gap weights. These download automatically when online. If your GPU nodes have no internet
-but share `~/.cache/huggingface` (and the repo) with an internet-connected login node, warm
-everything once on the login node, then run jobs offline:
+SPARC also pulls a few *third-party* weights on first use. Including the
+MatterSim potential + a MatterGen reference dataset (in the structure filter). These download automatically when online. If your GPU nodes have no internet
+but share `~/.cache/huggingface` (and the repo) with an internet-connected login node, warm everything once on the login node, then run jobs offline:
 ```bash
 python scripts/download_assets.py     # SPARC assets -> repo paths
-python scripts/warm_caches.py         # third-party MatterSim / MatterGen / ALIGNN weights
+python scripts/warm_caches.py         # third-party MatterSim / MatterGen 
 # then in the job:  export HF_HUB_OFFLINE=1 SPARC_SKIP_ASSET_DOWNLOAD=1
 ```
 
@@ -62,36 +70,57 @@ python scripts/warm_caches.py         # third-party MatterSim / MatterGen / ALIG
 ```bash
 source scripts/env.sh        # sets PROJECT_ROOT (required) + runtime dirs
 uv run python main.py \
-  expname=smoke pipeline=sparc model=symmcd reward=band_gap \
+  expname=smoke pipeline=sparc model=symmcd reward=band_gap_e3nn \
   logger=csv device=cuda eval_size=12 rl_epoch=2 \
   model.model_path="$MODEL_PATH" seed=1 deterministic_torch=true
 ```
-Downloads the SymmCD base + band-gap surrogate, samples a few crystals, scores them, runs 2 RL
-steps, and writes `exp_res/smoke/{metrics.csv,samples/}`.
+Downloads the SymmCD base + the E3NN band-gap surrogate, samples a few crystals, scores them, runs 2 RL steps, and writes `exp_res/smoke/{metrics.csv,samples/}`.
 
 ## 4. Reproduce the key experiments
 Run from the repo root (so `${hydra:runtime.cwd}` resolves to the project root). These are
-representative commands; the exact published overrides live in `scripts/nersc/` and `RUNS.md`.
+representative commands; the exact published overrides (adaptive space-group knobs, batch sizes,
+etc.) live in the `scripts/*.sbatch` submit scripts and `RUNS.md`.
 
-SLME (headline: band gap + η):
+**Dielectric — in-plane isotropy (the flagship run, shown in the animation above).**
+Drives `ε_xx = ε_yy` (in-plane isotropy — the signature of the trigonal/tetragonal/hexagonal
+families; cubic is excluded by a light z-anisotropy floor), gated by band gap ≥ 0.3 eV so
+candidates stay non-metallic and worth DFT verification:
 ```bash
-uv run python main.py expname=slme pipeline=sparc model=symmcd \
-  reward=tsenn_slme_optimate_bg02_eta08 logger=csv device=cuda \
-  eval_size=30 rl_epoch=200 seed=1 deterministic_torch=true model.model_path="$MODEL_PATH"
+uv run python main.py expname=dielectric_inplane_isotropy pipeline=sparc model=symmcd \
+  reward=fom_inplane_isotropy_gapgate logger=csv device=cuda \
+  eval_size=30 rl_epoch=120 seed=1 deterministic_torch=true \
+  model.model_path="$MODEL_PATH" \
+  model.sample_cfg.generation_batch_size=96 model.sample_cfg.batch_size=96
 ```
-SLME with the E3NN band-gap gate: as above with `reward=tsenn_slme_optimate_bg02_eta08_e3nngap`.
+MLIP relaxation is on by default; the no-relax ablation adds `+sample_cfg.filter.relax=false`, and a
+DiffCSP-backbone ablation is provided (see `scripts/dielectric_inplane_isotropy_gapgate_diffcsp_*.sbatch`).
 
-Static dielectric (layered/uniaxial, with relaxation):
+**Dielectric — in-plane emphasis (anisotropy-emphasis variant).**
+Same gate, but scores the layered/uniaxial FoM (out-of-plane anisotropy `ε_zz ≠ ε_∥`) with a strong
+in-plane-isotropy penalty (`inplane_penalty_power=4.0`): as above with
+`reward=fom_layered_uniaxial_gapgate_inplane_emphasis`.
+
+**SLME — band gap + solar-cell efficiency (η).**
+Weighted (not gated) reward: 0.2·band gap + 0.8·SLME η. The band-gap term is a hard-zero tent
+centered at 1.3 eV (the Shockley–Queisser optimum), scored with the project's own E3NN band-gap
+model; η is integrated over the AM1.5G spectrum from that gap up at 0.3 µm thickness (all set in the
+reward config):
 ```bash
-uv run python main.py expname=dielectric pipeline=sparc model=symmcd \
-  reward=fom_layered_uniaxial_gapgate_moderate logger=csv device=cuda \
-  eval_size=24 rl_epoch=200 seed=1 deterministic_torch=true \
-  model.model_path="$MODEL_PATH" model.sample_cfg.filter.relax=true
+uv run python main.py expname=slme_bgcenter13_eta08 pipeline=sparc model=symmcd \
+  reward=tsenn_slme_optimate_bgcenter13_eta08_e3nngap logger=csv device=cuda \
+  eval_size=30 rl_epoch=120 seed=1 deterministic_torch=true \
+  model.model_path="$MODEL_PATH" \
+  model.sample_cfg.generation_batch_size=128 model.sample_cfg.batch_size=128 \
+  model.sample_cfg.finetune_on_representative=true
 ```
+The full adaptive space-group + training overrides (`sg_temperature=1.0`, `lr=3e-5`,
+`lr_decay=0.98`, …) are in `RUNS.md` and `scripts/slme_*.sbatch`. An ascending-gap variant exists
+too (`reward=tsenn_slme_optimate_bg02_eta08_e3nngap`, band gap ascending [0.5, 3.0] eV instead of the tent).
+
 Band-gap target:
 ```bash
 uv run python main.py expname=bandgap pipeline=sparc model=symmcd \
-  reward=band_gap logger=csv device=cuda eval_size=24 rl_epoch=200 \
+  reward=band_gap_e3nn logger=csv device=cuda eval_size=24 rl_epoch=200 \
   seed=1 deterministic_torch=true model.model_path="$MODEL_PATH"
 ```
 
@@ -103,7 +132,9 @@ third-party ops remain nondeterministic (run with `warn_only`).
 
 ## 6. Clusters
 `scripts/slurm_gpu.sbatch` and `scripts/slurm_shared.sbatch` are generic templates — fill in
-`<ACCOUNT>/<PARTITION>/<QOS>`. The author's exact NERSC submission scripts are kept verbatim in
+`<ACCOUNT>/<PARTITION>/<QOS>`. The dielectric experiments ship as concrete, ready-to-submit
+scripts (`scripts/dielectric_*_b96*.sbatch`) — `sbatch` them directly; they encode the exact
+commands from §4. The author's exact NERSC submission scripts are kept verbatim in
 `scripts/nersc/` for reference (they hardcode NERSC paths/account and are not portable).
 `scripts/*.py` are paper-figure / analysis utilities; many expect run directories under `exp_res/`
 that are not shipped.

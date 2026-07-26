@@ -57,5 +57,5 @@ hydra:
 defaults:
   - pipeline: sparc
   - model: symmcd
-  - reward: band_gap
+  - reward: band_gap_e3nn
   - logger: wandb

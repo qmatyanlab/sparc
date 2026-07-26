@@ -4,7 +4,6 @@
 Besides the SPARC-specific assets (see scripts/download_assets.py), SPARC pulls a few
 third-party checkpoints from the public HuggingFace Hub on first use:
   - the MatterSim potential and a MatterGen reference dataset (via pipeline.filters.OptFilter)
-  - the ALIGNN band-gap weights (via rewards.calculators.ALIGNN)
 
 For normal (online) runs these download automatically. If your GPU nodes have no internet
 but share ~/.cache/huggingface with an internet-connected login node, run this once on the
@@ -36,13 +35,6 @@ def main() -> int:
 
     print("Warming OptFilter (MatterGen reference dataset) ...", flush=True)
     hydra.utils.instantiate(cfg.sample_cfg.filter)
-
-    print("Warming band-gap reward (ALIGNN weights) ...", flush=True)
-    from pymatgen.core import Lattice, Structure
-
-    reward = hydra.utils.instantiate(cfg.reward)
-    probe = Structure(Lattice.cubic(4.2), ["Na", "Cl"], [[0, 0, 0], [0.5, 0.5, 0.5]])
-    reward.calc_props(([probe], "warm"), "warm")
 
     print("Done. Third-party weights cached under ~/.cache/huggingface.")
     return 0

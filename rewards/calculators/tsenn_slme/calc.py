@@ -198,7 +198,7 @@ class TSENNSLME(Calculator):
         temperature_k: float = 300.0,
         radiative_fraction: float = 1.0,
         voltage_points: int = 2000,
-        eg_mode: str = "alignn",
+        eg_mode: str = "e3nn",
         eg_model_path: str | None = None,
         eg_config_path: str | None = None,
         fixed_eg_ev: float = 1.3,
@@ -328,17 +328,7 @@ class TSENNSLME(Calculator):
 
         eg_ev = None
         if self.integration_lower_bound == "band_gap":
-            if self.eg_mode == "alignn":
-                from rewards.calculators.alignn.calc import ALIGNN
-
-                eg_calc = ALIGNN(
-                    root_dir=os.path.join(self.root_dir, "_alignn_bandgap"),
-                    task="band_gap",
-                    device=self.tsenn.device,
-                    silent=True,
-                )
-                eg_ev = eg_calc.calc((struc_list, ""), label="band_gap")
-            elif self.eg_mode == "e3nn":
+            if self.eg_mode == "e3nn":
                 if self._eg_calc is None:
                     from rewards.calculators.e3nn_bandgap import E3NNBandGap
 
@@ -357,7 +347,7 @@ class TSENNSLME(Calculator):
                 eg_ev = np.zeros(N, dtype=float)
             else:
                 raise ValueError(
-                    "eg_mode must be 'alignn', 'e3nn', 'fixed', or 'none'")
+                    "eg_mode must be 'e3nn', 'fixed', or 'none'")
 
         eta = np.full(N, np.nan, dtype=float)
         jsc = np.full(N, np.nan, dtype=float)

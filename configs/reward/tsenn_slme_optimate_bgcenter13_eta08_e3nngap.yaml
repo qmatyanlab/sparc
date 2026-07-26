@@ -2,16 +2,8 @@
 # HARD-ZERO TENT centered at 1.3 eV (the Shockley-Queisser PV optimum) instead of ascending -- to
 # strengthen the claim that SPARC localizes the gap at ~1.3 eV while eta (weight 0.8) maximizes efficiency.
 # score = clamp01((1.0 - |BG-1.3|)/1.0): 0 below 0.3 eV (hard-zero -> expels metallic corner via negative
-# advantage) & above 2.3 eV; linear escape ramp 0.3->1.3; localization falloff 1.3->2.3. This keeps a
-# low-side escape gradient AND zeroes the metallic corner -- the two properties the collapsed 54218097 tent
+# advantage) & above 2.3 eV; linear escape ramp 0.3->1.3; localization falloff 1.3->2.3.
 # (maxv=1.5, partial credit at gap 0) lacked. Everything else (E3NN gap, eta, reduce:weight) is unchanged.
-#
-# Same as tsenn_slme_optimate_bg02_eta08.yaml but the band gap is the project's own
-# E3NN regressor (optuna_bandgap_trial_2) instead of ALIGNN -- in BOTH places ALIGNN
-# was used: the standalone band_gap reward AND the SLME integration lower bound
-# (eg_mode: e3nn). The E3NN model is loaded through the softplus-OFF Network
-# (utils_model_scalar) by rewards.calculators.E3NNBandGap; do NOT route it through the
-# TSENN Network, whose softplus-on-0e floors predictions to ~0.69 eV.
 _target_: rewards.reward.Reward
 
 root_dir: rewards

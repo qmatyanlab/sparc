@@ -5,21 +5,6 @@
 #              the SLME integration lower bound is the E3NN gap, consistent with the gate)
 #   g_gap    : E3NNBandGap, ascending ramp minv=0.3 maxv=1.0 (HARD zero below 0.3 eV)
 #
-# WHY this instead of the weighted-sum e3nngap run (55008527, which COLLAPSED):
-#  - That run used 0.2*band_gap(ascending[0.5,3.0]) + 0.8*eta. With the E3NN gap (lower scale
-#    than ALIGNN), ~66% of generated structures sit at gap<0.3 eV. The weighted sum still gave
-#    them ~0.11-0.19 reward (eta floor), so their advantage was only mildly negative -> the
-#    policy CAMPED there (gap mass <0.3 grew 66%->75% over training; reward flat ~0.28).
-#  - min() with a HARD-ZERO gate gives gap<0.3 structures EXACTLY 0 -> strongly negative
-#    advantage -> they get expelled. Proven on the sibling dielectric runs: gapgate_moderate
-#    55018082 (gate 0.3/1.0) drove gap mass <0.3 from 34%->16% and reward up. Do NOT add a
-#    near-0 ramp floor (e.g. minv=0): any minor reward in the 0-0.3 pile re-creates the camp.
-#  - The 25% of structures already at gap>=1.0 (even early) bootstrap the gate; the gate binds
-#    up to ~0.85 eV (forces escape), then eta (peaks ~1.3 eV) does the fine targeting above.
-#
-# Band gap via the softplus-OFF E3NNBandGap (NOT the TSENN gap head, which floors to ~0.69 eV).
-# jsc/voc are dropped (reduce: min requires commensurate terms); eta is the objective and the
-# jsc/voc diagnostics are derivable post-hoc if needed.
 _target_: rewards.reward.Reward
 
 root_dir: rewards

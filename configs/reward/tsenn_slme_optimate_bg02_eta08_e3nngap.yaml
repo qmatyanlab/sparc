@@ -1,9 +1,3 @@
-# Same as tsenn_slme_optimate_bg02_eta08.yaml but the band gap is the project's own
-# E3NN regressor (optuna_bandgap_trial_2) instead of ALIGNN -- in BOTH places ALIGNN
-# was used: the standalone band_gap reward AND the SLME integration lower bound
-# (eg_mode: e3nn). The E3NN model is loaded through the softplus-OFF Network
-# (utils_model_scalar) by rewards.calculators.E3NNBandGap; do NOT route it through the
-# TSENN Network, whose softplus-on-0e floors predictions to ~0.69 eV.
 _target_: rewards.reward.Reward
 
 root_dir: rewards
