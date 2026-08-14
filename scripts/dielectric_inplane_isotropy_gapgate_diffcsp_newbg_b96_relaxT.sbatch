@@ -7,11 +7,7 @@
 #SBATCH --mem=64G
 #SBATCH --time=4-00:00:00
 #SBATCH --output=exp_res/slurm_diel_ipiso_dcT_%j.log
-# 2x2 ablation cell: DiffCSP (plain M, no M-prime / no adaptive-SG), relax=TRUE, IN-PLANE
-# ISOTROPY reward. Same reward/config as the SymmCD isotropy cell (run 1033) but the DiffCSP
-# baseline generator: drops the M-prime-only knobs (adaptive-SG, finetune_on_representative,
-# sg_temperature, model_path). DiffCSP loads its own base (diffcsp_mp20, pre-cached from HF
-# jwchen25/MatInvent).
+
 set -uo pipefail
 cd ~/sparc_v1
 source scripts/env.sh

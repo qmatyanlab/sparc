@@ -28,11 +28,13 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import numpy as np
 from matplotlib.gridspec import GridSpec
 from matplotlib.lines import Line2D
+from matplotlib.legend_handler import HandlerBase
 from matplotlib.transforms import Bbox
-from matplotlib.patches import Rectangle, FancyArrowPatch, FancyBboxPatch, Arc
+from matplotlib.patches import Rectangle, FancyArrowPatch, FancyBboxPatch, Arc, Circle
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 _SCRIPTS = _PROJECT_ROOT / "scripts"
@@ -66,7 +68,7 @@ from plot_tsenn_slme_results import _latex_formula
 
 from itertools import product
 from ase import Atoms
-from ase.data import chemical_symbols
+from ase.data import chemical_symbols, covalent_radii
 from ase.data.colors import jmol_colors
 from ase.visualize.plot import plot_atoms
 from ase.io.utils import rotate as _ase_rotate
@@ -369,6 +371,83 @@ def _vesta_atoms(struct, view, margin: float = 0.45):
     return Atoms(symbols=out_s, positions=pos, cell=cell, pbc=True)
 
 
+# glossy-sphere atom rendering (base disc + lightened upper-left core + white specular glint),
+# matching the Fig-3 ablation / crystals_nc look (scripts/plot_symmetry_reward_ablation.py).
+_GLOSS_CORE_LIGHTEN, _GLOSS_CORE_FRAC, _GLOSS_CORE_ALPHA = 0.30, 0.55, 0.38
+_GLOSS_SPEC_FRAC, _GLOSS_SPEC_ALPHA = 0.20, 0.70
+_GLOSS_CORE_OFF, _GLOSS_SPEC_OFF = (-0.26, 0.26), (-0.32, 0.32)
+
+
+def _gloss_core(color):
+    r, g, b = mcolors.to_rgb(color)
+    f = _GLOSS_CORE_LIGHTEN
+    return (r + (1 - r) * f, g + (1 - g) * f, b + (1 - b) * f)
+
+
+def _glossy_atoms(ax, atoms, rotation, cols):
+    """Draw `atoms` (under ASE rotation string) as glossy spheres instead of flat ASE
+    plot_atoms discs: per atom a base disc + a lightened upper-left core + a white specular
+    glint, drawn back-to-front. Circles live in DATA coords (Angstrom) so they scale with the
+    axes; add_patch does NOT autoscale, so we set tight data limits (the caller then pads)."""
+    R = _ase_rotate(rotation)
+    P = np.asarray(atoms.get_positions()) @ R
+    xy, depth = P[:, :2], P[:, 2]
+    rad = covalent_radii[atoms.numbers] * 0.6
+    # projected unit-cell wireframe, behind the atoms
+    bits = np.array(list(product((0, 1), repeat=3)), dtype=float)
+    corners = bits @ np.asarray(atoms.cell, dtype=float) @ R
+    for i in range(8):
+        for j in range(i + 1, 8):
+            if int(np.abs(bits[i] - bits[j]).sum()) == 1:
+                ax.plot(corners[[i, j], 0], corners[[i, j], 1], color="0.45", lw=0.9,
+                        ls=(0, (5, 3)), zorder=1)
+    co, so = _GLOSS_CORE_OFF, _GLOSS_SPEC_OFF
+    for k in np.argsort(depth):
+        x, y = xy[k]; r = float(rad[k]); col = cols[k]; z = 5.0 + 1e-3 * int(k)
+        ax.add_patch(Circle((x, y), r, facecolor=col, edgecolor="black", lw=0.6, zorder=z))
+        ax.add_patch(Circle((x + co[0] * r, y + co[1] * r), r * _GLOSS_CORE_FRAC,
+                            facecolor=_gloss_core(col), edgecolor="none",
+                            alpha=_GLOSS_CORE_ALPHA, zorder=z + 1e-4))
+        ax.add_patch(Circle((x + so[0] * r, y + so[1] * r), r * _GLOSS_SPEC_FRAC,
+                            facecolor="white", edgecolor="none",
+                            alpha=_GLOSS_SPEC_ALPHA, zorder=z + 2e-4))
+    xs = np.concatenate([xy[:, 0] - rad, xy[:, 0] + rad, corners[:, 0]])
+    ys = np.concatenate([xy[:, 1] - rad, xy[:, 1] + rad, corners[:, 1]])
+    ax.set_xlim(float(xs.min()), float(xs.max()))
+    ax.set_ylim(float(ys.min()), float(ys.max()))
+
+
+class _GlossyLegendHandler(HandlerBase):
+    """Legend key drawn as a glossy sphere (base + lightened core + white specular), matching
+    _glossy_atoms so the species key reads like the rendered atoms."""
+
+    def __init__(self, color, **kw):
+        super().__init__(**kw)
+        self.color = color
+
+    def create_artists(self, legend, orig_handle, xdescent, ydescent, width, height,
+                       fontsize, trans):
+        cx, cy = width / 2.0 - xdescent, height / 2.0 - ydescent
+        r = 0.62 * height
+        base = Circle((cx, cy), r, facecolor=self.color, edgecolor="black", lw=0.7, transform=trans)
+        core = Circle((cx + _GLOSS_CORE_OFF[0] * r, cy + _GLOSS_CORE_OFF[1] * r),
+                      r * _GLOSS_CORE_FRAC, facecolor=_gloss_core(self.color), edgecolor="none",
+                      alpha=_GLOSS_CORE_ALPHA, transform=trans)
+        spec = Circle((cx + _GLOSS_SPEC_OFF[0] * r, cy + _GLOSS_SPEC_OFF[1] * r),
+                      r * _GLOSS_SPEC_FRAC, facecolor="white", edgecolor="none",
+                      alpha=_GLOSS_SPEC_ALPHA, transform=trans)
+        return [base, core, spec]
+
+
+def _glossy_species_legend(ax, nums, **legend_kw):
+    """A species key whose markers are glossy spheres (via _GlossyLegendHandler)."""
+    handles = [Line2D([0], [0], ls="", label=chemical_symbols[n]) for n in nums]
+    hmap = {h: _GlossyLegendHandler(tuple(_species_color(n))) for h, n in zip(handles, nums)}
+    leg = ax.legend(handles=handles, handler_map=hmap, **legend_kw)
+    leg.set_in_layout(False)
+    return leg
+
+
 def _render_structure(ax, struct, title, side: bool = False, view: str | None = None,
                       triad: bool = False, legend: bool = True):
     if view in ("c", "a"):
@@ -389,8 +468,8 @@ def _render_structure(ax, struct, title, side: bool = False, view: str | None = 
         struct, rotation = _symmetry_view(struct, side=side, view=view)
         atoms = AseAtomsAdaptor.get_atoms(struct)
     try:
-        cols = np.array([_species_color(z) for z in atoms.numbers])
-        plot_atoms(atoms, ax, rotation=rotation, radii=0.6, show_unit_cell=2, colors=cols)
+        cols = [tuple(_species_color(z)) for z in atoms.numbers]
+        _glossy_atoms(ax, atoms, rotation, cols)
     except Exception:  # noqa: BLE001
         ax.text(0.5, 0.5, "(render failed)", ha="center", va="center")
     ax.set_xticks([]); ax.set_yticks([])
@@ -426,14 +505,10 @@ def _render_structure(ax, struct, title, side: bool = False, view: str | None = 
     if legend:
         # species legend: a horizontal row in the blank strip below the structure
         nums = sorted({int(n) for n in atoms.numbers})
-        handles = [Line2D([0], [0], marker="o", ls="", markersize=7,
-                          markerfacecolor=_species_color(n), markeredgecolor="0.3",
-                          markeredgewidth=0.4, label=chemical_symbols[n]) for n in nums]
-        leg = ax.legend(handles=handles, loc="lower center",
-                        bbox_to_anchor=(0.5, 0.0), fontsize=FS_BASE + 1,
-                        frameon=False, handletextpad=0.2, columnspacing=0.9,
-                        borderpad=0.0, borderaxespad=0.0, ncol=len(nums))
-        leg.set_in_layout(False)
+        _glossy_species_legend(ax, nums, loc="lower center",
+                               bbox_to_anchor=(0.5, 0.0), fontsize=FS_BASE + 1,
+                               frameon=False, handletextpad=0.2, columnspacing=0.9,
+                               borderpad=0.0, borderaxespad=0.0, ncol=len(nums))
 
 
 def _tensor_matrix(row):
@@ -779,7 +854,7 @@ def _draw_schematic(fig, ax, record, run_dir, after_step=None):
     bax = ax.inset_axes([0.130, 0.892, 0.540, 0.072])
     _draw_sg_hist(bax, prior, "0.55", "initial SG prior $\\pi^0$",
                   show_xlabel=False, show_peak=False, ylabel="$\\pi^0$")
-    _varrow(ax, colx, 0.866, 0.828, r"sample $G \sim \pi^0$")
+    _varrow(ax, colx, 0.866, 0.828, r"sample $G \sim \pi^0,\; M \sim p(M|G)$")
 
     # ----- 1+2) generator card: model header + sampled crystal (two labelled views) --
     ax.add_patch(FancyBboxPatch((BOX_CX - BOX_W / 2, 0.520), BOX_W, 0.305,
@@ -794,7 +869,7 @@ def _draw_schematic(fig, ax, record, run_dir, after_step=None):
         cax_c = ax.inset_axes([0.075, 0.540, 0.40, 0.285])
         _render_structure(cax_c, struct, "", view="c", triad=True, legend=False)
         rx = 0.645
-        ax.text(rx, 0.775, "SG-conditioned\ndiffusion model\n$p_\\theta(\\mathcal{M}'|G)$",
+        ax.text(rx, 0.775, "SG-conditioned\ndiffusion model\n$p_\\theta(\\mathcal{M}'|G,M)$",
                 ha="center", va="center", fontsize=FS_LABEL, color="0.1",
                 linespacing=1.35, zorder=4)
         ax.text(rx, 0.638, sg_tex, ha="center", va="center", fontsize=FS_LABEL, color="0.15")
@@ -802,7 +877,7 @@ def _draw_schematic(fig, ax, record, run_dir, after_step=None):
     else:
         # plain black title on white (no filled header band -- the outline is enough)
         ax.text(BOX_CX, 0.802,
-                "SG-conditioned diffusion model  $p_\\theta(\\mathcal{M}'|G)$",
+                "SG-conditioned diffusion model  $p_\\theta(\\mathcal{M}'|G,M)$",
                 ha="center", va="center", fontsize=FS_LABEL, color="0.1", zorder=4)
         ax.text(BOX_CX, 0.762, sg_tex, ha="center", va="bottom",
                 fontsize=FS_LABEL, color="0.15")
@@ -813,27 +888,23 @@ def _draw_schematic(fig, ax, record, run_dir, after_step=None):
         _render_structure(cax_a, struct, "", view="a", triad=True, legend=False)
         key_anchor, key_ncol = (colx, 0.537), None
     nums = sorted({int(n) for n in AseAtomsAdaptor.get_atoms(struct).numbers})
-    handles = [Line2D([0], [0], marker="o", ls="", markersize=8,
-                      markerfacecolor=_species_color(n), markeredgecolor="0.3",
-                      markeredgewidth=0.5, label=chemical_symbols[n]) for n in nums]
-    key = ax.legend(handles=handles, loc="center", bbox_to_anchor=key_anchor,
-                    ncol=(key_ncol or len(nums)), frameon=False, fontsize=FS_LABEL,
-                    handletextpad=0.2, columnspacing=0.8, borderpad=0.0,
-                    borderaxespad=0.0)
-    key.set_in_layout(False)
+    _glossy_species_legend(ax, nums, loc="center", bbox_to_anchor=key_anchor,
+                           ncol=(key_ncol or len(nums)), frameon=False, fontsize=FS_LABEL,
+                           handletextpad=0.2, columnspacing=0.8, borderpad=0.0,
+                           borderaxespad=0.0)
     _varrow(ax, colx, 0.508, 0.470, "predict $\\varepsilon$ (TSENN)")
 
     # ----- 3) predicted dielectric tensor + in-plane rotation glyph -----------------
     zz = float(record["eps_zz"])
     perp = 0.5 * (float(record["eps_xx"]) + float(record["eps_yy"]))
-    tlabel = ("$\\varepsilon_{xx} = \\varepsilon_{yy}$" if scalar_mode == "inplane_isotropy"
+    tlabel = ("$\\varepsilon_{xx} = \\varepsilon_{yy} \\neq \\varepsilon_{zz}$" if scalar_mode == "inplane_isotropy"
               else "$\\varepsilon_{xx} = \\varepsilon_{yy} > \\varepsilon_{zz}$")
     tax = ax.inset_axes([0.305, 0.312, 0.215, 0.130])
     _plot_tensor(tax, _tensor_matrix(record), fs=FS_LABEL, title_fs=FS_LABEL)
     tax.set_xticks([])     # drop the bottom x/y/z labels so the reward arrow is clear
     # in-plane rotation symmetry glyph with the anisotropy relation below its caption
     _inplane_rotation_glyph(ax, 0.140, 0.400, s=0.95, relation=tlabel)
-    _varrow(ax, colx, 0.300, 0.262, r"compute reward $r(\mathcal{M}')$")
+    _varrow(ax, colx, 0.300, 0.262, r"compute reward $\mathcal{R}_G(\mathcal{M}')$")
 
     # ----- 4) reward (the dielectric objective) -------------------------------------
     # Full pure-math formula (no English prose), matched to the run's scalar_mode in
@@ -843,11 +914,10 @@ def _draw_schematic(fig, ax, record, run_dir, after_step=None):
                                 boxstyle="round,pad=0.004,rounding_size=0.018",
                                 facecolor="white", edgecolor="k", lw=1.4, zorder=3))
     if scalar_mode == "inplane_isotropy":
-        # keep the in-plane-isotropy term explicit; the out-of-plane gate is just the symbol
-        # g_z (its full clip definition can be expanded later).
+        # in-plane gate q_uni = g_z(1 - m), m = in-plane mismatch, combined conjunctively with
+        # the band-gap gate phi(E_g) via min -> reward r_uni (= R_G in the arrow above).
         ax.text(colx, 0.213,
-                r"$r = \left(1-\frac{|\varepsilon_{xx}-\varepsilon_{yy}|}{|\varepsilon_{xx}|+|\varepsilon_{yy}|}\right)"
-                r"\cdot g_{z}$",
+                r"$q_{\mathrm{uni}} = g_z(1-m),\qquad r_{\mathrm{uni}} = \min[\phi(q_{\mathrm{uni}}),\,\phi(E_g)]$",
                 ha="center", va="center", fontsize=_FS_BASE0 + 1, zorder=4)
     else:
         ax.text(colx, 0.213,

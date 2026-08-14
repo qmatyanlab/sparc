@@ -7,13 +7,6 @@
 #SBATCH --mem=64G
 #SBATCH --time=4-00:00:00
 #SBATCH --output=exp_res/slurm_diel_ipeF_%j.log
-# IN-PLANE EMPHASIS run, relax=FALSE arm. Identical to
-# dielectric_gapgate_inplane_emphasis_mprime_newbg_b96.sbatch EXCEPT +sample_cfg.filter.relax=false.
-# Rationale: the adaptive-SG policy credits the REALIZED (post-relax) space group, and MLIP
-# relaxation nudges atoms off exact Wyckoff sites (Fig-3: 21% P1 under relaxT vs 1% under relaxF).
-# Disabling relax keeps the realized SG == the requested (uniaxial) SG, so the condensation reads
-# cleanly. Trade-off: no e-above-hull stability metric (needs relaxation), so 'stable' drops from
-# the filter metrics (handled by the explicit metrics override).
 set -uo pipefail
 cd ~/sparc_v1
 source scripts/env.sh

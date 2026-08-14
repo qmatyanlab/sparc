@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --job-name=diel_ipisoF
+#SBATCH --job-name=diel_s1000
 #SBATCH --partition=gpu-shared
 #SBATCH --exclude=c2
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=24
 #SBATCH --mem=64G
-#SBATCH --time=4-00:00:00
-#SBATCH --output=exp_res/slurm_diel_ipisoF_%j.log
+#SBATCH --time=2-00:00:00
+#SBATCH --output=exp_res/slurm_diel_s1000_%j.log
 
 set -uo pipefail
 cd ~/sparc_v1
@@ -14,18 +14,26 @@ source scripts/env.sh
 export HF_HUB_OFFLINE=1 SPARC_SKIP_ASSET_DOWNLOAD=1
 echo "=== node: $(hostname)  $(date) ==="
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader | head -1
-~/.local/bin/uv run --frozen python main.py \
-  expname=dielectric_inplane_isotropy_gapgate_mprime_newbg_b96_relaxF \
+
+RUN="$PROJECT_ROOT/exp_res/dielectric_inplane_isotropy_gapgate_mprime_newbg_b96"
+
+export PYTHONPATH="$PROJECT_ROOT:${PYTHONPATH:-}"
+.venv/bin/python main.py \
+  expname=dielectric_ipiso_best_reward_sample1000 \
   pipeline=sparc model=symmcd reward=fom_inplane_isotropy_gapgate \
   logger=csv device=cuda \
-  eval_size=30 rl_epoch=120 \
-  pipeline.save_freq=10 \
+  eval_size=1000 \
+  pipeline.rl_epoch=1 \
+  pipeline.finetune_cfg.epochs=0 \
+  pipeline.replay=False \
+  pipeline.div_filter=False \
   seed=1 deterministic_torch=true \
-  'sample_cfg.filter.metrics=[validity,novel,unique]' \
-  +sample_cfg.filter.relax=false \
-  model.model_path="$MODEL_PATH" \
-  model.sample_cfg.generation_batch_size=96 \
-  model.sample_cfg.batch_size=96 \
+  'sample_cfg.filter.metrics=[validity,unique,novel,stable]' \
+  +sample_cfg.filter.relax=true \
+  model.model_path="$RUN/models/best_reward" \
+  model.sample_cfg.batch_size=100 \
+  model.sample_cfg.generation_batch_size=100 \
+  sample_cfg.num_batches=10 \
   model.sample_cfg.sg_temperature=100.0 \
   model.sample_cfg.finetune_on_representative=true \
   sample_cfg.adaptive_spacegroup.enabled=true \
@@ -34,12 +42,5 @@ nvidia-smi --query-gpu=name,memory.total --format=csv,noheader | head -1
   sample_cfg.adaptive_spacegroup.prior_mix=0.15 \
   sample_cfg.adaptive_spacegroup.min_prob=1.0e-4 \
   +sample_cfg.adaptive_spacegroup.symprec=0.01 \
-  model.finetune_cfg.lr=3e-5 \
-  pipeline.topk_ratio=0.5 \
-  pipeline.finetune_cfg.sigma=0.025 \
-  pipeline.finetune_cfg.sigma_decay_steps=50 \
-  pipeline.finetune_cfg.lr_decay=1.0 \
-  +pipeline.checkpoint_eval.prop_key=tsenn_static_dielectric_inplane_isotropy \
-  +pipeline.checkpoint_eval.hit_low=0.90 \
-  +pipeline.checkpoint_eval.hit_high=1.00
+  +sample_cfg.adaptive_spacegroup.initial_distribution_csv="$RUN/adaptive_spacegroup/step_0070.csv"
 echo "=== run exit=$? ($(date)) ==="

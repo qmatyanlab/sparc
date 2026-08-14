@@ -19,6 +19,7 @@ class TSENNStaticDielectric(Calculator):
         "xz_ratio",
         "layered_uniaxial",
         "inplane_isotropy",
+        "uniaxiality",
     }
 
     VALID_STANDARDIZE_MODES = {"none", "conventional", "refined"}
@@ -247,6 +248,28 @@ class TSENNStaticDielectric(Calculator):
                     np.abs(eps_zz) + np.abs(eps_perp) + 1e-8
                 )
                 z_gate = np.clip(layered_anisotropy / self.z_anisotropy_floor, 0.0, 1.0)
+                scalars = scalars * z_gate
+        elif self.scalar_mode == "uniaxiality":
+            # Reward UNIAXIAL optical character (two equal principal dielectric constants) via the
+            # SCALE-INVARIANT biaxiality of the tensor EIGENVALUES. Unlike inplane_isotropy (which
+            # keys on the DIAGONAL eps_xx-eps_yy split), this separates genuinely uniaxial tensors
+            # from biaxial (orthorhombic/monoclinic/triclinic) crystals whose diagonal in-plane split
+            # is numerically tiny yet whose MIDDLE principal value sits away from both extremes.
+            #   principal values lam0 <= lam1 <= lam2 (eigvalsh of the symmetric tensor)
+            #   pos = (lam1 - lam0) / (lam2 - lam0): 0 or 1 => a pair coincides (uniaxial); 0.5 => biaxial
+            #   biaxiality = 1 - |2*pos - 1| in [0,1];  score = 1 - biaxiality  (1.0 == uniaxial)
+            # Scale-invariant => does NOT credit the DEGREE of z-anisotropy (which let orthorhombic
+            # compete under layered_uniaxial). z_anisotropy_floor still excludes fully-isotropic cubic
+            # (all principal values equal => zero span => z_gate 0). In [0,1]; window via minv/maxv.
+            eig = np.linalg.eigvalsh(valid_tensors)  # ascending eigenvalues, shape (n, 3)
+            lam0, lam1, lam2 = eig[:, 0], eig[:, 1], eig[:, 2]
+            span = lam2 - lam0
+            pos = (lam1 - lam0) / (span + 1e-8)
+            biaxiality = 1.0 - np.abs(2.0 * pos - 1.0)
+            scalars = 1.0 - biaxiality
+            if self.z_anisotropy_floor > 0.0:
+                total_anisotropy = span / (np.abs(lam2) + np.abs(lam0) + 1e-8)
+                z_gate = np.clip(total_anisotropy / self.z_anisotropy_floor, 0.0, 1.0)
                 scalars = scalars * z_gate
         else:
             scalars = valid_tensors[:, self.component_i, self.component_j]

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fig 4, panel (c): before/after CONDENSATION for the SLME task, stacked.
+"""Fig 4, panel (c): before/after for the SLME task, stacked.
 
   top : element condensation -- prior (first N steps) vs best-stage periodic tables
         (count/unweighted occurrence; white = absent; eff. # elements e^H annotated).

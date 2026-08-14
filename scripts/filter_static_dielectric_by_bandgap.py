@@ -1,25 +1,5 @@
 #!/usr/bin/env python3
-"""Filter a TSENNStaticDielectric run's samples by predicted band gap.
 
-The static-dielectric reward maximizes epsilon, which diverges as Eg -> 0, so the
-best-reward samples drift toward (near-)metallic structures that DFPT cannot treat.
-This script scores the per-step *eval* pool (the evaluated top-k that the reward txt /
-dielectric-tensor npz are 1:1 aligned with), predicts the band gap with the project's
-own E3NN band-gap model (the sibling of the dielectric model, optuna_bandgap_trial_2),
-and writes a band-gap-annotated table plus a non-metallic subset (CSV + CIFs + extxyz)
-suitable for DFPT.
-
-The band-gap net MUST be loaded with the same Network class it was trained with
-(data.dielectric.utils.utils_model_scalar via scripts.plot_band_gap_splits.NetWrapper);
-the TSENN Network is a different architecture that silently loads the same state dict
-but predicts a ~0.69 eV floor. Validated against the cached test split:
-MAE 0.19 eV, R^2 0.91, and ~89% of true metals predicted at Eg <= 0.1 eV.
-
-Example:
-  .venv/bin/python scripts/filter_static_dielectric_by_bandgap.py \
-      exp_res/tsenn_static_dielectric_layered_uniaxial_symmcd_v3_uniform_anchor_54584243 \
-      --top-k 500 --min-gap 0.5
-"""
 from __future__ import annotations
 
 import argparse

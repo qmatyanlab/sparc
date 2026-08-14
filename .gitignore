@@ -47,9 +47,13 @@ rewards/tsenn_cache/
 dataset_data_range
 
 # active_learning subproject: track the CODE, ignore its data/artifacts blobs
+./active_learning/
 active_learning/artifacts/
 active_learning/data/
 active_learning/**/__pycache__/
 
 
 figure4_cifs.tar.gz
+
+# Archived/outdated one-off scripts — kept on disk for reference, not tracked
+scripts/_archive/

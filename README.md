@@ -1,9 +1,5 @@
 # SPARC
-
-## Inverse Design of Crystal Symmetry from Target Physical Responses
-
-**S**ymmetry- and **P**roperty-**A**ware Crystal Generation with **R**einforcement Learning
-
+**S**ymmetry- and **P**roperty-**A**ware **R**einforcement Learning for **C**rystal Generation 
 <p align="center">
   <img src="assets/dielectric_story_animation.gif" width="820" alt="SPARC reinforcement-learning loop. A space-group-conditioned diffusion model is steered toward in-plane-isotropic dielectric crystals. During training, the reward increases and the sampled space-group distribution concentrates within uniaxial crystal families.">
 </p>
