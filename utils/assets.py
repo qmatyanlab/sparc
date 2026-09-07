@@ -29,6 +29,21 @@ from typing import Iterable
 DEFAULT_REPO_ID = "AngusHsuPhys/sparc-assets"
 DEFAULT_REPO_TYPE = "model"
 
+# Paper RL run "visualization bundles" live under ``runs/<name>/`` in the same HF repo.
+# Each bundle is a run directory MINUS the large ``models/`` checkpoints (~40-65 MB/run) —
+# everything needed to regenerate the paper figures. Uploaded by scripts/upload_paper_runs.py,
+# fetched by scripts/download_paper_runs.py.
+RUN_PREFIX = "runs"
+PAPER_RUNS: tuple[str, ...] = (
+    # in-plane-isotropy 2x2 ablation: SymmCD / DiffCSP  x  relax on / off
+    "dielectric_inplane_isotropy_gapgate_mprime_newbg_b96",          # SymmCD, relax on (flagship dielectric)
+    "dielectric_inplane_isotropy_gapgate_mprime_newbg_b96_relaxF",   # SymmCD, relax off
+    "dielectric_inplane_isotropy_gapgate_diffcsp_newbg_b96_relaxT",  # DiffCSP, relax on
+    "dielectric_inplane_isotropy_gapgate_diffcsp_newbg_b96_relaxF",  # DiffCSP, relax off
+    # flagship SLME run
+    "tsenn_slme_03um_optimate_bgcenter13_eta08_e3nngap_mprime_lrdecay098_b128_v1",
+)
+
 
 def repo_root() -> Path:
     env = os.environ.get("PROJECT_ROOT")
@@ -202,6 +217,51 @@ def ensure_assets(groups: Iterable[str] = ("core",)) -> list[Path]:
         if group in wanted:
             resolved.append(resolve_path(relpath, optional=(group == "optional")))
     return resolved
+
+
+def download_paper_runs(names=None, *, dest=None, force=False) -> dict:
+    """Download paper run visualization bundles from ``runs/<name>/`` on HuggingFace.
+
+    Each bundle is a run directory without the large ``models/`` checkpoints. Runs are
+    materialized at ``<dest>/<name>`` (default ``<repo_root>/exp_res/<name>``) — the same
+    location the plotting scripts expect. Existing run dirs are skipped unless ``force``.
+    Returns ``{name: Path}``.
+    """
+    import shutil
+
+    from huggingface_hub import snapshot_download
+
+    names = list(names) if names else list(PAPER_RUNS)
+    dest_root = Path(dest).resolve() if dest else (repo_root() / "exp_res")
+    dest_root.mkdir(parents=True, exist_ok=True)
+    results = {n: dest_root / n for n in names}
+    todo = [n for n in names if force or not (dest_root / n).exists()]
+    if not todo:
+        return results
+
+    staging = dest_root / ".hf_runs_staging"
+    snapshot_download(
+        repo_id=repo_id(),
+        repo_type=repo_type(),
+        allow_patterns=[f"{RUN_PREFIX}/{n}/**" for n in todo],
+        revision=_revision(),
+        token=_token(),
+        local_dir=str(staging),
+        local_files_only=_offline(),
+    )
+    for n in todo:
+        src = staging / RUN_PREFIX / n
+        if not src.is_dir():
+            raise FileNotFoundError(
+                f"Run bundle '{n}' not found in {repo_id()} under '{RUN_PREFIX}/'. "
+                f"Available bundles: {', '.join(PAPER_RUNS)}"
+            )
+        out = dest_root / n
+        if out.exists():
+            shutil.rmtree(out)
+        shutil.move(str(src), str(out))
+    shutil.rmtree(staging, ignore_errors=True)
+    return results
 
 
 def main(argv=None) -> int:
