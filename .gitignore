@@ -57,3 +57,8 @@ figure4_cifs.tar.gz
 
 # Archived/outdated one-off scripts — kept on disk for reference, not tracked
 scripts/_archive/
+# Consolidated DFT dataset bundle -- a build artifact of scripts/build_dft_bundle.py
+# (rebuild with: export_dft_mongo_cache.py then build_dft_bundle.py; published to HF)
+dft_dataset/
+scripts/nersc/
+RUNS.md
