@@ -6,7 +6,7 @@
 
 SPARC inversely designs crystal symmetry from a desired physical response.
 
-The animation above presents our flagship example. The target is an in-plane-isotropic dielectric response, $\varepsilon_{xx}=\varepsilon_{yy}$. As the reward increases, the sampled space-group distribution concentrates within uniaxial crystal families. The model therefore discovers the crystal symmetries that are compatible with the target response.
+The animation above presents one of the two design tasks. The target is an in-plane-isotropic dielectric response, $\varepsilon_{xx}=\varepsilon_{yy}$. As the reward increases, the sampled space-group distribution concentrates within uniaxial crystal families. The model therefore discovers the crystal symmetries that are compatible with the target response.
 
 SPARC achieves this by fine-tuning the symmetry-aware crystal diffusion model SymmCD through reinforcement learning.
 
@@ -20,7 +20,6 @@ SPARC achieves this by fine-tuning the symmetry-aware crystal diffusion model Sy
 - `pipeline/`, `rewards/`, `memory/` — RL loop, reward calculators, replay buffer
 - `utils/assets.py` — auto-downloads large assets from HuggingFace on first use
 - `scripts/` — portable helpers + the dielectric run submit scripts (`scripts/dielectric_*_b96*.sbatch`); `scripts/nersc/` holds the author's original NERSC scripts (reference only)
-- `RUNS.md` — catalog of published runs and their commands
 
 ## 1. Install (single `uv` environment)
 Requires [uv](https://docs.astral.sh/uv/). The pinned wheels target **CUDA 11.8 (`cu118`)**; any driver supporting CUDA ≥ 11.8 works. 
@@ -42,8 +41,6 @@ Optionally prefetch (handy before submitting a job, or on a login node that shar
 python scripts/download_assets.py        # ~4.2 GB "core": surrogates + mp_20 + SymmCD base
 python scripts/download_assets.py --all  # also the ~8.6 GB caches (only needed to re-train surrogates)
 ```
-Groups: **core** (run the experiments), **cached** (re-train surrogates), **optional** (also in git).
-Env knobs: `SPARC_HF_REPO`, `SPARC_HF_REPO_TYPE`, `SPARC_SKIP_ASSET_DOWNLOAD`, `HF_HUB_OFFLINE`.
 
 SPARC also pulls a few *third-party* weights on first use. Including the MatterSim potential + a MatterGen reference dataset (in the structure filter). These download automatically when online. If your GPU nodes have no internet but share `~/.cache/huggingface` (and the repo) with an internet-connected login node, warm everything once on the login node, then run jobs offline:
 ```bash
@@ -55,9 +52,10 @@ python scripts/warm_caches.py         # third-party MatterSim / MatterGen
 ### Paper run bundles — download & visualize the results
 The RL runs behind the paper figures are published in the **same repo** under `runs/<name>/` as lightweight *visualization bundles*
 ```bash
-python scripts/download_paper_runs.py            # all 5 runs -> exp_res/<name>/
+python scripts/download_paper_runs.py            # all 6 runs -> exp_res/<name>/
 python scripts/download_paper_runs.py --list     # show the run names
 python scripts/download_paper_runs.py --runs dielectric_inplane_isotropy_gapgate_mprime_newbg_b96
+```
 
 ## 3. Quickstart smoke test
 ```bash
@@ -70,9 +68,9 @@ python main.py \
 Downloads the SymmCD base + the E3NN band-gap surrogate, samples a few crystals, scores them, runs 2 RL steps, and writes `exp_res/smoke/{metrics.csv,samples/}`.
 
 ## 4. Reproduce the key experiments
-Run from the repo root (so `${hydra:runtime.cwd}` resolves to the project root). These are representative commands; the exact published overrides (adaptive space-group knobs, batch sizes, etc.) live in the `scripts/*.sbatch` submit scripts and `RUNS.md`.
+Run from the repo root. These are representative commands; the exact published overrides (adaptive space-group knobs, batch sizes, etc.) live in the `scripts/*.sbatch` submit scripts.
 
-**Dielectric — in-plane isotropy (the flagship run, shown in the animation above).**
+**Dielectric — in-plane isotropy (the task shown in the animation above).**
 Drives `ε_xx = ε_yy` (in-plane isotropy — the signature of the trigonal/tetragonal/hexagonal families; cubic is excluded by a light z-anisotropy floor), gated by band gap ≥ 0.3 eV so candidates stay non-metallic and worth DFT verification:
 ```bash
 python main.py expname=dielectric_inplane_isotropy pipeline=sparc model=symmcd \
@@ -101,9 +99,6 @@ python main.py expname=bandgap pipeline=sparc model=symmcd \
   reward=band_gap_e3nn logger=csv device=cuda eval_size=24 rl_epoch=200 \
   seed=1 deterministic_torch=true model.model_path="$MODEL_PATH"
 ```
-
-## 5. Reproducibility
-`seed=1 deterministic_torch=true` seeds python/numpy/torch and enables deterministic algorithms (`CUBLAS_WORKSPACE_CONFIG`, cuDNN deterministic). Results reproduce as **trends**; bitwise identity additionally requires the same GPU architecture + driver and the pinned `cu118` wheels. A few third-party ops remain nondeterministic (run with `warn_only`).
 
 
 ## License

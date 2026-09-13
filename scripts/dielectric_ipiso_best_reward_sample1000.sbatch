@@ -15,6 +15,8 @@ export HF_HUB_OFFLINE=1 SPARC_SKIP_ASSET_DOWNLOAD=1
 echo "=== node: $(hostname)  $(date) ==="
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader | head -1
 
+# NOTE: this pass (job 1224) sampled the run below, which gated on [validity, unique,
+# novel] -- NOT the later `..._sun` rerun. Left as-is so the record stays true.
 RUN="$PROJECT_ROOT/exp_res/dielectric_inplane_isotropy_gapgate_mprime_newbg_b96"
 
 export PYTHONPATH="$PROJECT_ROOT:${PYTHONPATH:-}"

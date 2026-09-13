@@ -272,8 +272,8 @@ def _axis_triad(ax, cell, rotation, origin=(0.15, 0.15), length_in=0.40, dot_ms=
             ax.plot([ox], [oy], marker=("." if depth >= 0 else "x"),
                     ms=(0.82 * dot_ms if depth >= 0 else 0.55 * dot_ms), color=col,
                     transform=ax.transAxes, zorder=11, clip_on=False)
-            ax.text(ox, oy - 0.13 / hin, name, color=col, ha="center", va="top",
-                    fontsize=FS_BASE - 4, fontweight="bold",
+            ax.text(ox, oy - 0.13 / hin, f"${name}$", color=col, ha="center", va="top",
+                    fontsize=FS_BASE - 3,
                     transform=ax.transAxes, zorder=11)
         else:
             ux, uy = sx / plen, sy / plen
@@ -284,8 +284,8 @@ def _axis_triad(ax, cell, rotation, origin=(0.15, 0.15), length_in=0.40, dot_ms=
                                         mutation_scale=9),
                         zorder=10, annotation_clip=False)
             ax.text(ox + (length_in + gap) / win * ux, oy + (length_in + gap) / hin * uy,
-                    name, color=col, ha="center", va="center", fontsize=FS_BASE - 4,
-                    fontweight="bold", transform=ax.transAxes, zorder=11)
+                    f"${name}$", color=col, ha="center", va="center",
+                    fontsize=FS_BASE - 3, transform=ax.transAxes, zorder=11)
 
 
 def _symmetry_view(struct, symprec: float = 0.1, tilt: float = 0.0, side: bool = False,
@@ -441,7 +441,8 @@ class _GlossyLegendHandler(HandlerBase):
 
 def _glossy_species_legend(ax, nums, **legend_kw):
     """A species key whose markers are glossy spheres (via _GlossyLegendHandler)."""
-    handles = [Line2D([0], [0], ls="", label=chemical_symbols[n]) for n in nums]
+    handles = [Line2D([0], [0], ls="", label=rf"$\mathrm{{{chemical_symbols[n]}}}$")
+               for n in nums]
     hmap = {h: _GlossyLegendHandler(tuple(_species_color(n))) for h, n in zip(handles, nums)}
     leg = ax.legend(handles=handles, handler_map=hmap, **legend_kw)
     leg.set_in_layout(False)
@@ -525,7 +526,7 @@ def _plot_tensor(ax, M, fs=None, title_fs=None):
     fs = FS_BASE - 1 if fs is None else fs
     title_fs = FS_BASE + 1 if title_fs is None else title_fs
     im = ax.imshow(M, cmap="Blues", vmin=0.0, vmax=M.max())
-    labels = ["x", "y", "z"]
+    labels = [r"$x$", r"$y$", r"$z$"]
     ax.set_xticks(range(3)); ax.set_xticklabels(labels, fontsize=fs)
     ax.set_yticks(range(3)); ax.set_yticklabels(labels, fontsize=fs)
     ax.tick_params(length=0)
@@ -976,6 +977,8 @@ def main() -> None:
                          # calligraphic \mathcal{M} (material) in the generator title;
                          # the publication style maps cal->Liberation Sans (plain M), so
                          # point it at the bundled CM symbol font for a true script glyph
+                         # (tried fontset="cm" for ALL math 2026-09-08 -- Computer Modern
+                         # serif math next to the sans prose looked wrong; reverted)
                          "mathtext.cal": "cmsy10"})
 
     # FAST path: redraw only panel (a) from the cached example, skipping the slow full

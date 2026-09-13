@@ -20,7 +20,8 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from utils.assets import PAPER_RUNS, download_paper_runs, repo_id  # noqa: E402
+from utils.assets import (ALL_RUNS, EXTRA_RUNS, PAPER_RUNS,  # noqa: E402
+                          download_paper_runs, repo_id)
 
 
 def main() -> int:
@@ -35,7 +36,7 @@ def main() -> int:
 
     if args.list:
         print("Available paper run bundles:")
-        for n in PAPER_RUNS:
+        for n in ALL_RUNS:
             print(f"  {n}")
         return 0
 
