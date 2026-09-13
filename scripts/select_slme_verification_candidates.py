@@ -1,17 +1,4 @@
 #!/usr/bin/env python3
-"""Select SLME-run candidates in the solar-optimal target region for DFT SLME verification.
-
-From an SLME run's whole trajectory (reuses select_good_structures.load_samples + score), keep the
-target region (stable + gap window + high eta), tag fluoride / open-d-metal / toxic, then emit a
-CURATED MIX: the top physically-credible (non-fluoride, non-open-d) chalcogenides/oxides + a few
-representative TM-fluorides (to document the surrogate's OOD failure). Exports CONVENTIONAL-cell CIFs
-(what the DFT pipeline expects) + a summary carrying the SURROGATE's gap/eta/SLME%/jsc/voc so the DFT
-result is a direct comparison.
-
-Example:
-  python scripts/select_slme_verification_candidates.py \
-    exp_res/tsenn_slme_03um_optimate_bgcenter13_eta08_e3nngap_mprime_lrdecay098_b128_55752527
-"""
 from __future__ import annotations
 
 import argparse

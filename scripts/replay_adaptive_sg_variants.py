@@ -7,10 +7,6 @@ study collapse/exploration dynamics on identical data.
 Off-policy caveat: the observation stream was generated under the original
 run's proposal policy, so variants are compared on what THAT run observed;
 groups it rarely sampled carry sparse reward signal.
-
-Example:
-    python scripts/replay_adaptive_sg_variants.py \
-        exp_res/tsenn_static_dielectric_layered_uniaxial_symmcd_v1_carryover_53154012
 """
 from __future__ import annotations
 

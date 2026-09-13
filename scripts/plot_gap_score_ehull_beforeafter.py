@@ -2,16 +2,6 @@
 """Before/after (first-N vs last-N RL steps) gap-vs-anisotropy-score-vs-Ehull scatter for
 layered-uniaxial dielectric runs -- works for BOTH gap-gated and ungated runs.
 
-For each run dir a 2-panel figure: x = predicted E3NN band gap, y = raw layered-uniaxial
-anisotropy scalar (computed from the predicted eps tensor), colour = Ehull (clipped). Left =
-first N steps ("before" RL steers), right = last N steps ("after"). The band-gap GATE ramp
-[minv,maxv] (read from the run's reward config) is shaded; for an UNGATED run the same band is
-drawn as a "DFPT-safe reference". A red box marks the both-good corner (score>thr AND gap>thr).
-
-Gap + eps are read from deliverables_bandgap_filtered/scored_by_reward_with_bandgap.csv (so the
-E3NN gaps are identical/consistent across runs -- run scripts/filter_static_dielectric_by_bandgap.py
-first if it is missing). Ehull is matched from samples/step_*_stability.csv via extxyz total_energy.
-
 Example:
   python scripts/plot_gap_score_ehull_beforeafter.py \\
       exp_res/<ungated_run> exp_res/<gated_run> --n 10

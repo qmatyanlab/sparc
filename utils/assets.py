@@ -17,6 +17,9 @@ Environment variables:
   SPARC_HF_REPO_TYPE         ``model`` (default) or ``dataset``
   SPARC_HF_REVISION          optional git revision / branch / tag of the asset repo
   HF_TOKEN / HUGGING_FACE_HUB_TOKEN   token for a private repo (or ``huggingface-cli login``)
+  SPARC_DFT_DATASET_REPO     HF dataset repo for the consolidated DFT bundle
+                             (default: ``AngusHsuPhys/sparc-dft-dataset``, type ``dataset``)
+  SPARC_DFT_DATASET_REVISION optional revision of that dataset repo
   SPARC_SKIP_ASSET_DOWNLOAD  if set, never download (use only local files; for air-gapped nodes)
   HF_HUB_OFFLINE / SPARC_OFFLINE      offline mode (HF cache only)
 """
@@ -28,6 +31,43 @@ from typing import Iterable
 
 DEFAULT_REPO_ID = "AngusHsuPhys/sparc-assets"
 DEFAULT_REPO_TYPE = "model"
+
+# Paper RL run "visualization bundles" live under ``runs/<name>/`` in the same HF repo.
+# Each bundle is a run directory MINUS the large ``models/`` checkpoints (~40-65 MB/run) —
+# everything needed to regenerate the paper figures. Uploaded by scripts/upload_paper_runs.py,
+# fetched by scripts/download_paper_runs.py.
+RUN_PREFIX = "runs"
+# What differs between these runs is the filter `OptFilter` applies to each generated
+# batch before scoring:
+#   [validity, unique, novel]           the four 2x2 ablation cells
+#   [validity, unique, novel, stable]   `..._b96_sun`   (strict S.U.N.)
+#   [validity, unique, stable]          `..._b128_v0ref_120step` (sparc_v0 default: no novelty)
+# Everything else -- reward, backbone, schedules, batch size, seed -- is held fixed. The
+# gate is recorded per run in each run's own `hparams.yaml`; see RUNS.md for the ledger.
+#
+# `..._b128_v0ref_120step` is the sparc_v0 `_c2` run truncated to steps 0-119, shipping
+# `deliverables/slme_story_composite_v3`. Note the 131 DFT candidates were drawn from the
+# `_c2` best_reward checkpoint at **step 189**, outside that 120-step window.
+PAPER_RUNS: tuple[str, ...] = (
+    # -- in-plane-isotropy 2x2 ablation: SymmCD / DiffCSP  x  relax on / off ------------
+    "dielectric_inplane_isotropy_gapgate_mprime_newbg_b96",          # SymmCD, relax on
+    "dielectric_inplane_isotropy_gapgate_mprime_newbg_b96_relaxF",   # SymmCD, relax off
+    "dielectric_inplane_isotropy_gapgate_diffcsp_newbg_b96_relaxT",  # DiffCSP, relax on
+    "dielectric_inplane_isotropy_gapgate_diffcsp_newbg_b96_relaxF",  # DiffCSP, relax off
+    # -- strict-S.U.N. dielectric rerun -------------------------------------------------
+    "dielectric_inplane_isotropy_gapgate_mprime_newbg_b96_sun",
+    # -- SLME ---------------------------------------------------------------------------
+    "tsenn_slme_03um_optimate_bgcenter13_eta08_e3nngap_mprime_lrdecay098_b128_v0ref_120step",
+)
+
+# On the hub and downloadable by name, but not part of the default set: the SLME run
+# trained under the full S.U.N. gate, i.e. the like-for-like comparison against the
+# V.U.S-gated one above.
+EXTRA_RUNS: tuple[str, ...] = (
+    "tsenn_slme_03um_optimate_bgcenter13_eta08_e3nngap_mprime_lrdecay098_b128_v1",
+)
+
+ALL_RUNS: tuple[str, ...] = PAPER_RUNS + EXTRA_RUNS
 
 
 def repo_root() -> Path:
@@ -202,6 +242,87 @@ def ensure_assets(groups: Iterable[str] = ("core",)) -> list[Path]:
         if group in wanted:
             resolved.append(resolve_path(relpath, optional=(group == "optional")))
     return resolved
+
+
+def download_paper_runs(names=None, *, dest=None, force=False) -> dict:
+    """Download paper run visualization bundles from ``runs/<name>/`` on HuggingFace.
+
+    Each bundle is a run directory without the large ``models/`` checkpoints. Runs are
+    materialized at ``<dest>/<name>`` (default ``<repo_root>/exp_res/<name>``) — the same
+    location the plotting scripts expect. Existing run dirs are skipped unless ``force``.
+    Returns ``{name: Path}``.
+    """
+    import shutil
+
+    from huggingface_hub import snapshot_download
+
+    names = list(names) if names else list(PAPER_RUNS)
+    dest_root = Path(dest).resolve() if dest else (repo_root() / "exp_res")
+    dest_root.mkdir(parents=True, exist_ok=True)
+    results = {n: dest_root / n for n in names}
+    todo = [n for n in names if force or not (dest_root / n).exists()]
+    if not todo:
+        return results
+
+    staging = dest_root / ".hf_runs_staging"
+    snapshot_download(
+        repo_id=repo_id(),
+        repo_type=repo_type(),
+        allow_patterns=[f"{RUN_PREFIX}/{n}/**" for n in todo],
+        revision=_revision(),
+        token=_token(),
+        local_dir=str(staging),
+        local_files_only=_offline(),
+    )
+    for n in todo:
+        src = staging / RUN_PREFIX / n
+        if not src.is_dir():
+            raise FileNotFoundError(
+                f"Run bundle '{n}' not found in {repo_id()} under '{RUN_PREFIX}/'. "
+                f"Known bundles: {', '.join(ALL_RUNS)}"
+            )
+        out = dest_root / n
+        if out.exists():
+            shutil.rmtree(out)
+        shutil.move(str(src), str(out))
+    shutil.rmtree(staging, ignore_errors=True)
+    return results
+
+
+# The consolidated DFT dataset (scripts/build_dft_bundle.py) lives in its own
+# **dataset**-type repo rather than in the model-type asset repo above, so that the
+# HuggingFace dataset viewer renders ``materials.csv`` for reviewers.
+DEFAULT_DFT_DATASET_REPO = "AngusHsuPhys/sparc-dft-dataset"
+
+
+def dft_dataset_repo_id() -> str:
+    return os.environ.get("SPARC_DFT_DATASET_REPO", DEFAULT_DFT_DATASET_REPO)
+
+
+def download_dft_bundle(dest=None, *, force: bool = False) -> Path:
+    """Fetch the consolidated DFT dataset bundle into ``dest`` (default ``<repo>/dft_dataset``)."""
+    from huggingface_hub import snapshot_download
+
+    dest = Path(dest) if dest else (repo_root() / "dft_dataset")
+    if dest.exists() and (dest / "materials.csv").exists() and not force:
+        return dest
+    if _skip():
+        raise FileNotFoundError(
+            f"No DFT dataset bundle at {dest} and SPARC_SKIP_ASSET_DOWNLOAD is set. "
+            f"Build it locally (scripts/build_dft_bundle.py) or unset the variable."
+        )
+    dest.mkdir(parents=True, exist_ok=True)
+    snapshot_download(
+        repo_id=dft_dataset_repo_id(),
+        repo_type="dataset",
+        # only this repo's own revision knob -- SPARC_HF_REVISION pins the *asset* repo
+        # and would be a nonexistent revision here
+        revision=os.environ.get("SPARC_DFT_DATASET_REVISION") or None,
+        token=_token(),
+        local_dir=str(dest),
+        local_files_only=_offline(),
+    )
+    return dest
 
 
 def main(argv=None) -> int:

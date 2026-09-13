@@ -1,29 +1,4 @@
 #!/usr/bin/env python3
-"""Select LAYERED uniaxial-dielectric candidates from the static-dielectric RL run
-for DFPT verification.
-
-Unlike select_dfpt_candidates.py (which ranks on the scalar reward only), this uses the
-predicted dielectric TENSOR stored in
-  {run}/deliverables_bandgap_filtered/scored_by_reward_with_bandgap.csv
-(eps_xx,eps_yy,eps_zz + E3NN band gap; the E3NN optuna_bandgap model loaded via the
-validated NetWrapper -- NOT the TSENN band-gap head, which floors to ln2~0.693 eV).
-Ehull is merged from the candidate CSV.  A candidate must be:
-
-  * PHYSICAL      : all eps components > 1 and < 200 (drops the negative-eps reward
-                    hacks like BiIO3 -13/-13/+28 that still scored reward=1.0)
-  * UNIAXIAL      : eps_xx ~= eps_yy   (in-plane isotropic)
-  * LAYERED       : eps_in = (eps_xx+eps_yy)/2  >  eps_out = eps_zz  (in-plane more
-                    polarisable than across the stacking axis -- the vdW-layer signature)
-  * FINITE gap    : 0.5 <= Eg <= 6 eV (DFPT dielectric/phonons need an insulator)
-  * STABLE        : ehull <= EHULL_MAX
-
-Ranked by dielectric_reward (meaningful once the unphysical hacks are removed); the
-conventional-cell CIF + a tensor summary are written per pick.
-
-Example:
-  .venv/bin/python scripts/select_layered_dielectric_candidates.py
-  .venv/bin/python scripts/select_layered_dielectric_candidates.py --ehull-max 0.10
-"""
 from __future__ import annotations
 
 import argparse

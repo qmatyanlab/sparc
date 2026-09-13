@@ -7,16 +7,6 @@
 #SBATCH --mem=64G
 #SBATCH --time=4-00:00:00
 #SBATCH --output=exp_res/slurm_diel_ipe_%j.log
-# IN-PLANE EMPHASIS run -- clean A/B against run 986 (dielectric_gapgate_loose308_mprime_newbg_b96).
-# Runs from the FRESH clone ~/sparc_v1 (GitHub origin/main 8c015d9 = the NERSC update).
-# The ONLY reward change vs 986 is reward=fom_layered_uniaxial_gapgate_inplane_emphasis, which is
-# identical to fom_layered_uniaxial_gapgate_loose EXCEPT the dielectric term's inplane_penalty_power
-# (1.0 -> 4.0). Same gate window (0.3->0.8), same ceiling (0.20), same SymmCD + M-prime, relax=TRUE,
-# b96, rl_epoch=120, same adaptive-SG knobs. NO restrict_spacegroups: the concentration onto the
-# uniaxial classes must EMERGE from the emphasized in-plane penalty. Band-gap surrogate = the
-# 2026-07-14 full-MP retrain (data/surrogates/TSENN_bandgap.torch, sha f5ef4ae1...), now the
-# canonical file on HF sparc-assets. If condensation is slow after ~40 loops, a follow-up can lower
-# adaptive_spacegroup.prior_mix (0.15 -> ~0.08).
 set -uo pipefail
 cd ~/sparc_v1
 source scripts/env.sh

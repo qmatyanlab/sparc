@@ -7,9 +7,6 @@
 #SBATCH --mem=64G
 #SBATCH --time=4-00:00:00
 #SBATCH --output=exp_res/slurm_diel_ipiso_dcF_%j.log
-# 2x2 ablation cell: DiffCSP (plain M, no M-prime / no adaptive-SG), relax=FALSE, IN-PLANE
-# ISOTROPY reward. Same as dielectric_inplane_isotropy_gapgate_diffcsp_newbg_b96_relaxT.sbatch
-# EXCEPT +sample_cfg.filter.relax=false. DiffCSP loads its own base (diffcsp_mp20, pre-cached).
 set -uo pipefail
 cd ~/sparc_v1
 source scripts/env.sh

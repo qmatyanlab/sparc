@@ -1,22 +1,5 @@
 #!/usr/bin/env python
-"""Track space-group CONDENSATION over an RL run.
 
-Reads the per-step adaptive space-group snapshots written by the SPARC pipeline
-(``<run_dir>/adaptive_spacegroup/step_XXXX.csv``; columns include ``spacegroup`` and
-``current_prob``) and plots the two signals that show whether reward-driven RL is
-condensing generation onto the uniaxial (optically-anisotropic) crystal classes:
-
-  (a) Shannon entropy (nats) of the SG proposal distribution vs RL step -- should DROP
-      (and STAY down) as the policy concentrates (uniform over ~169 supported SGs ~= ln(169) ~= 5.13).
-  (b) Probability mass per crystal system vs RL step, with the UNIAXIAL family
-      (tetragonal + trigonal + hexagonal, SG 75-194) highlighted -- should RISE for the
-      in-plane-emphasis run and stay flat/low for the power=1.0 control (run 986).
-
-Usage:
-    python scripts/plot_sg_condensation.py <run_dir> [--out PATH] [--label NAME]
-    # compare two runs (e.g. in-plane-emphasis vs 986 control) on shared axes:
-    python scripts/plot_sg_condensation.py <run_a> --compare <run_b> --labels ipe,control
-"""
 from __future__ import annotations
 
 import argparse

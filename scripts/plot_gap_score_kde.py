@@ -1,20 +1,4 @@
 #!/usr/bin/env python3
-"""All-steps gap-vs-anisotropy-score density scatter for layered-uniaxial dielectric runs.
-
-The single-panel, KDE-coloured analogue of plot_gap_score_ehull_beforeafter.py: SAME axes
-(x = predicted E3NN band gap, y = raw layered-uniaxial anisotropy scalar from the predicted
-eps tensor), but AGGREGATED over every RL step and coloured by 2-D KDE density (z), exactly
-like the SLME composite (b) panels. Reveals where the whole run's population concentrates in
-the (gap, score) plane rather than a before/after snapshot.
-
-Gap + eps are read straight from the run's on-disk per-step reward artifacts (no model re-run,
-no CSV needed): gaps from rewards/bandgap/step_*.txt and the dielectric tensor from
-rewards/<diel-reward>/step_*_tensor.npz (the subdir carrying *_tensor.npz), which are 1:1
-aligned per step via the tensor's valid_mask.
-
-Example:
-  python scripts/plot_gap_score_kde.py exp_res/<run> [exp_res/<run2> ...]
-"""
 from __future__ import annotations
 
 import argparse

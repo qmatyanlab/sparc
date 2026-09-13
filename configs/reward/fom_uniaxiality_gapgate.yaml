@@ -1,0 +1,64 @@
+# Optical-UNIAXIALITY dielectric FoM GATED by band gap.
+#
+# FoM = min( d_uni , g_gap )   (reduce: min = conjunctive AND)
+#   d_uni : TSENNStaticDielectric (uniaxiality) = 1 - biaxiality, where biaxiality is the
+#           SCALE-INVARIANT position of the MIDDLE principal dielectric constant between the two
+#           extremes: sort eigenvalues lam0<=lam1<=lam2, pos=(lam1-lam0)/(lam2-lam0),
+#           biaxiality = 1 - |2*pos - 1|.  1.0 when a pair of principal values coincides
+#           (uniaxial: eps_xx==eps_yy protected by a >=3-fold axis), lower as the tensor becomes
+#           biaxial (three distinct principal values). Normalized ascending over a TIGHT window.
+#   g_gap : E3NNBandGap, ascending ramp 0.3 -> 0.8 (kept so candidates are non-metallic and worth
+#           DFT verification).
+#
+# WHY uniaxiality instead of inplane_isotropy: the surrogate's biaxial (ortho/mono/tri) crystals
+#   have a numerically TINY diagonal eps_xx-eps_yy split (median ~2%), so the (1 - inplane_mismatch)
+#   in-plane term -- even raised to a power -- cannot penalize them and they "pop" (measured: ~49%
+#   of the late population, mean diel reward ~0.56). The middle-eigenvalue biaxiality DOES separate
+#   them: uniaxial == 0.000 exactly (symmetry-protected in the equivariant surrogate), biaxial median
+#   ~0.46. Swapping the in-plane term for (1 - biaxiality) keeps uniaxial retention identical (~0.93)
+#   while dropping the biaxial pass-rate 63% -> ~11%. Scale-invariant => still does NOT credit the
+#   DEGREE of z-anisotropy. Purely a tensor property => NO space-group whitelist (stays a discovery).
+#
+# WINDOW (minv/maxv): raw score clusters high, so a TIGHT [0.90,1.0] window is what discriminates.
+#   z_anisotropy_floor still excludes fully-isotropic cubic (zero eigenvalue span => z_gate 0),
+#   ramping to 1 once there is real out-of-plane anisotropy (>= z_floor). z_floor=0.01 (LIGHT).
+#
+# Band gap = data/surrogates/TSENN_bandgap.torch (2026-07-14 full-MP retrain), softplus-OFF.
+_target_: rewards.reward.Reward
+
+root_dir: rewards
+reduce: min
+
+prop_cfg:
+  - name: tsenn_static_dielectric_uniaxiality
+    calculator:
+      _target_: rewards.calculators.TSENNStaticDielectric
+      root_dir: rewards/tsenn_static_dielectric_layered_uniaxial
+      task: static_dielectric
+      model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_static_dielectric_tensor.torch
+      config_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_static_dielectric_tensor.yaml
+      device: ${device}
+      batch_size: 16
+      scalar_mode: uniaxiality
+      standardize_structure: refined
+      standardize_symprec: 0.01
+      z_anisotropy_floor: 0.01
+    target: ascending
+    minv: 0.90
+    maxv: 1.00
+
+  - name: band_gap
+    calculator:
+      _target_: rewards.calculators.E3NNBandGap
+      root_dir: rewards/bandgap
+      task: band_gap
+      model_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_bandgap.torch
+      config_path: ${hydra:runtime.cwd}/data/surrogates/TSENN_bandgap.yaml
+      device: ${device}
+      batch_size: 256
+      silent: true
+    target: ascending
+    minv: 0.3
+    maxv: 0.8
+
+reward_threshold: 0.5

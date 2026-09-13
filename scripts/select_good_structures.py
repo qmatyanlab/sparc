@@ -1,23 +1,4 @@
 #!/usr/bin/env python3
-"""Reconstructed "good structures" selector for SymmCD/SLME runs.
-
-Reproduces the deliverables_good_structures(_corrected) outputs: from the whole RL
-trajectory it scores every generated sample (NaN-aligned per-step reward files keep
-row alignment with structures), filters to "good" and "solar-window" candidates,
-diversity-selects the top N, and writes CSVs, CIFs, an extxyz, a structure grid, and
-a selection summary.
-
-Scores (verified against the original outputs):
-  eta_score      = clip(eta / 0.35, 0, 1)
-  ehull_score    = clip(1 - max(ehull, 0) / 0.1, 0, 1)
-  good:   band_gap_reward = clip((Eg - 0.5) / (3.0 - 0.5), 0, 1)
-  solar:  band_gap_reward = triangular peak at 1.55 eV, 0 at 1.0 and 2.5 eV
-  selection_score = 0.55*eta_score + 0.25*band_gap_reward + 0.20*ehull_score
-Filters: good = ehull<=0.1 & Eg>=0.5 ; solar = ehull<=0.1 & 1.0<=Eg<=2.5.
-
-Example:
-  python scripts/select_good_structures.py exp_res/<run> --output-dir <run>/deliverables_good_structures_corrected
-"""
 from __future__ import annotations
 
 import argparse

@@ -7,11 +7,7 @@
 #SBATCH --mem=64G
 #SBATCH --time=4-00:00:00
 #SBATCH --output=exp_res/slurm_diel_ipiso_%j.log
-# IN-PLANE ISOTROPY run. Reward = fom_inplane_isotropy_gapgate: targets ONLY the in-plane relation
-# eps_xx == eps_yy (score = 1 - inplane_mismatch, window [0.90,1.0]) gated by band gap (0.3->0.8,
-# kept for DFT-worthiness). Rewards the in-plane rotation groups (trig/tet/hex) AND cubic at ~1.0,
-# pushes orthorhombic to ~0.35. NO z-anisotropy term. Everything else identical to the
-# inplane_emphasis launcher (SymmCD + M-prime, relax=TRUE, b96, rl_epoch=120, adaptive-SG knobs).
+
 set -uo pipefail
 cd ~/sparc_v1
 source scripts/env.sh
