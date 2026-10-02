@@ -11,7 +11,7 @@ The animation above presents one of the two design tasks. The target is an in-pl
 SPARC achieves this by fine-tuning the symmetry-aware crystal diffusion model SymmCD through reinforcement learning.
 
 
-> Paper: _add citation / link here._
+> Paper: https://arxiv.org/html/2609.13468v1
 
 ## Repository layout
 - `main.py` — Hydra entry point (instantiates `pipeline.sparc.SPARC` and calls `run_rl`)
