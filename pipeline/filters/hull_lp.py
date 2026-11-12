@@ -2,7 +2,7 @@
 
 MatterGen's energy metrics build a pymatgen PhaseDiagram over every reference entry of a structure's
 chemical system, i.e. an (n-1)-dimensional convex hull for n elements. For a 12-element structure with
-O, S, Cl, I, Li, Ba, ... qhull did not finish in hours, so the RL run hung.
+O, S, Cl, I, Li, Ba, ... qhull did not finish, so the RL run hung.
 
 The energy above hull of one composition c only needs the lower hull at c:
     hull(c) = min sum_i x_i e_i  over x >= 0 with sum_i x_i f_i = c,
