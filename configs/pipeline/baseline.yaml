@@ -10,9 +10,9 @@ save_freq: 100  # for agent model
 
 # sampling
 sample_cfg:
-  batch_size: ${sample_size}
+  batch_size: ${oc.select:sample_size,256}
   num_batches: 1
 
 # finetune
 finetune_cfg:
-  batch_size: ${sample_size}
+  batch_size: ${oc.select:sample_size,256}

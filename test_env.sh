@@ -27,7 +27,7 @@ python main.py \
   expname=test \
   pipeline=sparc \
   model=symmcd \
-  reward=band_gap \
+  reward=band_gap_e3nn \
   device=cuda \
   logger=csv \
   eval_size=12 \
