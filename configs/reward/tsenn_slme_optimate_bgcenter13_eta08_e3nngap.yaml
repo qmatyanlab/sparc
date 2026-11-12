@@ -1,9 +1,3 @@
-# BAND-GAP-LOCALIZING variant of tsenn_slme_optimate_bg02_eta08_e3nngap.yaml: the band_gap term is a
-# HARD-ZERO TENT centered at 1.3 eV (the Shockley-Queisser PV optimum) instead of ascending -- to
-# strengthen the claim that SPARC localizes the gap at ~1.3 eV while eta (weight 0.8) maximizes efficiency.
-# score = clamp01((1.0 - |BG-1.3|)/1.0): 0 below 0.3 eV (hard-zero -> expels metallic corner via negative
-# advantage) & above 2.3 eV; linear escape ramp 0.3->1.3; localization falloff 1.3->2.3.
-# (maxv=1.5, partial credit at gap 0) lacked. Everything else (E3NN gap, eta, reduce:weight) is unchanged.
 _target_: rewards.reward.Reward
 
 root_dir: rewards

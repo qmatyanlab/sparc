@@ -18,6 +18,18 @@ sample_cfg:
   # keep using the expanded structure. Default true = validated-correct behavior (better reward/yield
   # across static, SLME, dielectric A/B); set false to reproduce legacy pre-fix runs.
   finetune_on_representative: true
+  # t=0 Wyckoff snap / orbit expansion. Per-axis site-symmetry labels can resolve to a lower-
+  # symmetry Wyckoff position than the one the atom converged to; the expansion then stacks
+  # coincident images. orbit_merge_tol (Angstrom, 0 = off) merges them back onto the higher-
+  # symmetry site, cartesian_snap picks the snap target by Cartesian distance, and strict_snap
+  # drops crystals whose snap fails instead of keeping an unexpanded atom.
+  # Legacy (pre-fix) behaviour: orbit_merge_tol=0, cartesian_snap=false, strict_snap=false,
+  # min_interatomic_distance=0.
+  orbit_merge_tol: 0.5
+  cartesian_snap: true
+  strict_snap: true
+  # Reject expanded cells with any interatomic distance below this (Angstrom; 0 = off).
+  min_interatomic_distance: 0.5
 
 finetune_cfg:
   batch_size: ${eval_size}

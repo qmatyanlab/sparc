@@ -40,6 +40,11 @@ from mattersim.applications.batch_relax import BatchRelaxer
 from mattersim.forcefield.potential import Potential
 from tempfile import mkdtemp
 
+from pipeline.filters.hull_lp import patch_mattergen_energy_metrics
+
+# Energy above hull of >= 11-element systems by LP; PhaseDiagram's qhull does not finish there.
+patch_mattergen_energy_metrics()
+
 # Singleton cache: LMDBGZSerializer opens an LMDB environment that cannot be
 # opened twice in the same process.  Both OptFilter and OptEval share this ref.
 _LMDB_REFERENCE = None
@@ -107,6 +112,8 @@ def _worker_init():
 
 
 def parallel_run(func, args_list, num_workers: int | None = None):
+    if len(args_list) == 0:
+        return []
     if num_workers is None:
         num_workers = mp.cpu_count()
     with mp.Pool(processes=num_workers, initializer=_worker_init) as pool:

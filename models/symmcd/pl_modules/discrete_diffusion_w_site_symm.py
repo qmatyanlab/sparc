@@ -257,15 +257,73 @@ def find_num_atoms(dummy_ind, total_num_atoms):
     return torch.tensor(actual_num_atoms)
 
 
-def modify_frac_coords_one(frac_coords, site_symm, atom_types, spacegroup):
+def _min_image(delta):
+    delta = np.asarray(delta, dtype=float)
+    return delta - np.rint(delta)
+
+
+def _merge_orbit_images(images, lattice, tol):
+    """Merge images of one representative that lie within ``tol`` Angstrom of each other.
+
+    When the site-symmetry label resolves to a lower-symmetry Wyckoff position than the one the
+    coordinates converged to, the orbit expansion maps the atom onto itself several times. The
+    coincident images are {h.x : h in H} for the stabiliser H of the true site; their centroid is
+    H-invariant, so replacing the cluster by its centroid recovers the higher-symmetry position.
+    """
+    images = np.asarray(images, dtype=float) % 1.0
+    n = len(images)
+    if n <= 1 or tol <= 0 or lattice is None:
+        return images, 0
+    cluster_of = np.full(n, -1)
+    merged = []
+    for i in range(n):
+        if cluster_of[i] >= 0:
+            continue
+        delta = _min_image(images - images[i])
+        dist = np.linalg.norm(delta @ lattice, axis=1)
+        members = np.where((dist < tol) & (cluster_of < 0))[0]
+        cluster_of[members] = len(merged)
+        merged.append((images[i] + delta[members].mean(axis=0)) % 1.0)
+    return np.stack(merged), n - len(merged)
+
+
+def modify_frac_coords_one(
+    frac_coords,
+    site_symm,
+    atom_types,
+    spacegroup,
+    lattice=None,
+    merge_tol=0.0,
+    strict=False,
+    cartesian_snap=True,
+):
+    """Snap each representative to a Wyckoff position of ``spacegroup`` and expand its orbit.
+
+    ``lattice`` (3x3, rows are lattice vectors, Angstrom) is needed for the orbit merge and,
+    with ``cartesian_snap``, picks the snap target by Cartesian distance; otherwise the legacy
+    fractional-coordinate distance is used.
+    ``merge_tol`` > 0 merges coincident images of the same representative (see
+    ``_merge_orbit_images``). ``strict`` marks the crystal as failed when a snap or expansion
+    raises, instead of silently keeping the unexpanded representative (legacy behaviour).
+    """
     spacegroup = (
         int(spacegroup.item()) if torch.is_tensor(spacegroup) else int(spacegroup)
     )
+    if lattice is not None:
+        lattice = (
+            lattice.detach().cpu().double().numpy()
+            if torch.is_tensor(lattice)
+            else np.asarray(lattice, dtype=float)
+        )
+        if not np.isfinite(lattice).all():
+            # Diverged lattice (rejected downstream anyway): no metric, legacy fractional snap.
+            lattice = None
     site_symm_axis = site_symm.reshape(-1, SITE_SYMM_AXES, SITE_SYMM_PGS).detach().cpu()
     wp_to_site_symm = _wp_to_site_symm(spacegroup)
 
     new_frac_coords, new_atom_types, new_site_symm = [], [], []
     min_ss_dists, wp_projection_dists = [], []
+    failed = False
     for sym, frac_coord, atm_type in zip(site_symm_axis, frac_coords, atom_types):
         frac_coord = frac_coord.detach().cpu().numpy()
         wp_to_ss_dist = {
@@ -277,43 +335,65 @@ def modify_frac_coords_one(frac_coords, site_symm, atom_types, spacegroup):
         closest_ss_wps = [
             wp for wp, dist in wp_to_ss_dist.items() if dist == min_ss_dist
         ]
-        closes = []
-        for wp in closest_ss_wps:
-            for orbit_index in range(len(wp.ops)):
-                close = (
-                    _search_closest_wp(spacegroup, wp, wp.ops[orbit_index], frac_coord)
-                    % 1.0
-                )
-                closes.append(
-                    (
-                        close,
-                        wp,
-                        orbit_index,
-                        np.linalg.norm(
-                            np.minimum(
-                                (close - frac_coord) % 1.0, (frac_coord - close) % 1.0
-                            )
-                        ),
-                    )
-                )
+        atm_np = atm_type.detach().cpu().numpy()
+        sym_np = sym.detach().cpu().numpy()
         try:
-            closest = sorted(closes, key=lambda x: x[-1])[0]
+            closes = []
+            for wp in closest_ss_wps:
+                for orbit_index in range(len(wp.ops)):
+                    close = (
+                        _search_closest_wp(
+                            spacegroup, wp, wp.ops[orbit_index], frac_coord
+                        )
+                        % 1.0
+                    )
+                    frac_dist = np.linalg.norm(
+                        np.minimum(
+                            (close - frac_coord) % 1.0, (frac_coord - close) % 1.0
+                        )
+                    )
+                    cart_dist = (
+                        float(np.linalg.norm(_min_image(close - frac_coord) @ lattice))
+                        if lattice is not None
+                        else None
+                    )
+                    closes.append((close, wp, orbit_index, frac_dist, cart_dist))
+            use_cart = cartesian_snap and lattice is not None
+            sort_key = (lambda x: x[4]) if use_cart else (lambda x: x[3])
+            closest = sorted(closes, key=sort_key)[0]
             wyckoff = closest[1]
             repr_index = closest[2]
-            wp_projection_dists.append(float(closest[3]))
-            frac_coord = closest[0]
-            for index in range(len(wyckoff)):
-                new_frac_coords.append(
-                    wyckoff[(index + repr_index) % len(wyckoff)].operate(frac_coord)
-                    % 1.0
-                )
-                new_atom_types.append(atm_type.detach().cpu().numpy())
-                new_site_symm.append(sym.detach().cpu().numpy())
+            snapped = closest[0]
+            images = [
+                wyckoff[(index + repr_index) % len(wyckoff)].operate(snapped) % 1.0
+                for index in range(len(wyckoff))
+            ]
+            images, _ = _merge_orbit_images(images, lattice, merge_tol)
         except Exception:
+            if strict:
+                failed = True
+                break
+            # Legacy behaviour: keep the unexpanded representative.
             new_frac_coords.append(frac_coord)
-            new_atom_types.append(atm_type.detach().cpu().numpy())
-            new_site_symm.append(sym.detach().cpu().numpy())
+            new_atom_types.append(atm_np)
+            new_site_symm.append(sym_np)
+            continue
+        wp_projection_dists.append(float(closest[3]))
+        for image in images:
+            new_frac_coords.append(image)
+            new_atom_types.append(atm_np)
+            new_site_symm.append(sym_np)
 
+    if failed or not new_frac_coords:
+        # Zero atoms: the caller drops the crystal.
+        return (
+            np.zeros((0, 3)),
+            0,
+            np.zeros((0,) + tuple(atom_types.shape[1:])),
+            np.zeros((0, SITE_SYMM_AXES, SITE_SYMM_PGS)),
+            min_ss_dists,
+            wp_projection_dists,
+        )
     return (
         np.stack(new_frac_coords),
         len(new_frac_coords),
@@ -324,7 +404,22 @@ def modify_frac_coords_one(frac_coords, site_symm, atom_types, spacegroup):
     )
 
 
-def modify_frac_coords(traj, spacegroups, num_repr):
+def modify_frac_coords(
+    traj,
+    spacegroups,
+    num_repr,
+    lattices=None,
+    merge_tol=0.0,
+    strict=False,
+    cartesian_snap=True,
+):
+    """Snap + orbit-expand every crystal of a batch (see ``modify_frac_coords_one``).
+
+    ``lattices`` must be index-aligned with ``num_repr`` / ``spacegroups`` (i.e. not yet
+    filtered). Crystals that are empty or fail (``strict``) are dropped; ``traj["kept_index"]``
+    records which input crystals survive so callers can filter every per-crystal field with the
+    same mask.
+    """
     device = traj["frac_coords"].device
     total_atoms = 0
     updated_frac_coords, updated_num_atoms, updated_atom_types, updated_site_symm = (
@@ -334,63 +429,79 @@ def modify_frac_coords(traj, spacegroups, num_repr):
         [],
     )
     min_ss_dists, wp_projection_dists = [], []
+    kept_index = []
     # Representative (asymmetric-unit) snapshot M', collected only for the KEPT crystals so it
     # aligns 1:1 with the expanded outputs below. Used by the RL fine-tune to re-noise M'
     # (the space the reverse-diffusion sampler acted on) instead of the orbit-expanded cell M.
     repr_frac_coords, repr_atom_types, repr_site_symm, repr_num_atoms = [], [], [], []
     for index in range(len(num_repr)):
-        if num_repr[index] > 0:
-            rep_fc = traj["frac_coords"][total_atoms : total_atoms + num_repr[index]]
-            rep_ss = traj["site_symm"][total_atoms : total_atoms + num_repr[index]]
-            rep_at = traj["atom_types"][total_atoms : total_atoms + num_repr[index]]
-            outputs = modify_frac_coords_one(
-                rep_fc,
-                rep_ss,
-                rep_at,
-                spacegroups[index],
-            )
-            (
-                new_frac_coords,
-                new_num_atoms,
-                new_atom_types,
-                new_site_symm,
-                min_ss_dist,
-                wp_projection_dist,
-            ) = outputs
-            if new_num_atoms:
-                updated_frac_coords.append(new_frac_coords)
-                updated_num_atoms.append(new_num_atoms)
-                updated_atom_types.append(new_atom_types)
-                updated_site_symm.append(new_site_symm)
-                min_ss_dists.append(min_ss_dist)
-                wp_projection_dists.append(wp_projection_dist)
-                repr_frac_coords.append(rep_fc.detach().cpu())
-                repr_atom_types.append(rep_at.detach().cpu())
-                repr_site_symm.append(
-                    rep_ss.reshape(-1, SITE_SYMM_AXES, SITE_SYMM_PGS).detach().cpu()
-                )
-                repr_num_atoms.append(int(num_repr[index]))
-        total_atoms += num_repr[index]
+        n_rep = int(num_repr[index])
+        if n_rep <= 0:
+            continue
+        rep_fc = traj["frac_coords"][total_atoms : total_atoms + n_rep]
+        rep_ss = traj["site_symm"][total_atoms : total_atoms + n_rep]
+        rep_at = traj["atom_types"][total_atoms : total_atoms + n_rep]
+        total_atoms += n_rep
+        (
+            new_frac_coords,
+            new_num_atoms,
+            new_atom_types,
+            new_site_symm,
+            min_ss_dist,
+            wp_projection_dist,
+        ) = modify_frac_coords_one(
+            rep_fc,
+            rep_ss,
+            rep_at,
+            spacegroups[index],
+            lattice=lattices[index] if lattices is not None else None,
+            merge_tol=merge_tol,
+            strict=strict,
+            cartesian_snap=cartesian_snap,
+        )
+        if not new_num_atoms:
+            continue
+        kept_index.append(index)
+        updated_frac_coords.append(new_frac_coords)
+        updated_num_atoms.append(new_num_atoms)
+        updated_atom_types.append(new_atom_types)
+        updated_site_symm.append(new_site_symm)
+        min_ss_dists.append(min_ss_dist)
+        wp_projection_dists.append(wp_projection_dist)
+        repr_frac_coords.append(rep_fc.detach().cpu())
+        repr_atom_types.append(rep_at.detach().cpu())
+        repr_site_symm.append(
+            rep_ss.reshape(-1, SITE_SYMM_AXES, SITE_SYMM_PGS).detach().cpu()
+        )
+        repr_num_atoms.append(n_rep)
 
-    traj["frac_coords"] = torch.cat(
-        [torch.from_numpy(x) for x in updated_frac_coords]
-    ).to(device)
-    traj["atom_types"] = torch.cat(
-        [torch.from_numpy(x) for x in updated_atom_types]
-    ).to(device)
-    traj["num_atoms"] = torch.tensor(updated_num_atoms).to(device)
-    traj["site_symm"] = torch.cat([torch.from_numpy(x) for x in updated_site_symm]).to(
-        device
+    n_type = traj["atom_types"].shape[-1]
+    traj["frac_coords"] = (
+        torch.cat([torch.from_numpy(x) for x in updated_frac_coords]).to(device)
+        if updated_frac_coords
+        else torch.zeros((0, 3), device=device)
+    )
+    traj["atom_types"] = (
+        torch.cat([torch.from_numpy(x) for x in updated_atom_types]).to(device)
+        if updated_atom_types
+        else torch.zeros((0, n_type), device=device)
+    )
+    traj["num_atoms"] = torch.tensor(updated_num_atoms, dtype=torch.long).to(device)
+    traj["site_symm"] = (
+        torch.cat([torch.from_numpy(x) for x in updated_site_symm]).to(device)
+        if updated_site_symm
+        else torch.zeros((0, SITE_SYMM_AXES, SITE_SYMM_PGS), device=device)
     )
     traj["min_ss_dists"] = min_ss_dists
     traj["wp_projection_dists"] = wp_projection_dists
+    traj["kept_index"] = torch.tensor(kept_index, dtype=torch.long, device=device)
     traj["representative"] = {
         "frac_coords": torch.cat(repr_frac_coords).to(device)
         if repr_frac_coords
         else torch.zeros((0, 3), device=device),
         "atom_types": torch.cat(repr_atom_types).to(device)
         if repr_atom_types
-        else torch.zeros((0, traj["atom_types"].shape[-1]), device=device),
+        else torch.zeros((0, n_type), device=device),
         "site_symm": torch.cat(repr_site_symm).to(device)
         if repr_site_symm
         else torch.zeros((0, SITE_SYMM_AXES, SITE_SYMM_PGS), device=device),
@@ -649,7 +760,22 @@ class CSPDiffusion(BaseModule):
         return {"loss": loss.mean()}
 
     @torch.no_grad()
-    def sample(self, batch, diff_ratio=1.0, step_lr=1e-5):
+    def sample(
+        self,
+        batch,
+        diff_ratio=1.0,
+        step_lr=1e-5,
+        orbit_merge_tol=0.5,
+        cartesian_snap=True,
+        strict_snap=True,
+    ):
+        """Reverse diffusion followed by the t=0 Wyckoff snap + orbit expansion.
+
+        ``orbit_merge_tol`` (Angstrom; 0 disables) merges coincident orbit images,
+        ``cartesian_snap`` picks the snap target by Cartesian rather than fractional distance,
+        and ``strict_snap`` drops crystals whose snap/expansion fails. Pass
+        ``orbit_merge_tol=0, cartesian_snap=False, strict_snap=False`` for the legacy behaviour.
+        """
         del diff_ratio
         batch_size = batch.num_graphs
         ks_mask, ks_add = sg_to_ks_mask(batch.spacegroup)
@@ -797,9 +923,20 @@ class CSPDiffusion(BaseModule):
         traj[0]["num_atoms"] = find_num_atoms(dummy_ind, batch.num_atoms).to(
             self.device
         )
-        empty_crystals = (traj[0]["num_atoms"] == 0).long()
-        traj[0]["ks"] = traj[0]["ks"][(1 - empty_crystals).bool()]
-        traj[0]["lattices"] = traj[0]["lattices"][(1 - empty_crystals).bool()]
-        traj[0] = modify_frac_coords(traj[0], batch.spacegroup, traj[0]["num_atoms"])
+        # Snap + expand with the unfiltered (index-aligned) lattices, then drop empty or failed
+        # crystals from every per-crystal field with the same mask, space group included.
+        traj[0] = modify_frac_coords(
+            traj[0],
+            batch.spacegroup,
+            traj[0]["num_atoms"],
+            lattices=traj[0]["lattices"],
+            merge_tol=orbit_merge_tol,
+            strict=strict_snap,
+            cartesian_snap=cartesian_snap,
+        )
+        kept = traj[0]["kept_index"]
+        traj[0]["ks"] = traj[0]["ks"][kept]
+        traj[0]["lattices"] = traj[0]["lattices"][kept]
+        traj[0]["spacegroup"] = batch.spacegroup[kept]
         representative = traj[0].pop("representative", None)
         return traj[0], {"representative": representative}

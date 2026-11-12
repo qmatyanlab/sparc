@@ -51,6 +51,10 @@ class TSENNStaticDielectric(Calculator):
         standardize_symprec: float = 0.01,
         inplane_penalty_power: float = 1.0,
         z_anisotropy_floor: float = 0.0,
+        # TSENN_static_dielectric_tensor.torch was trained WITHOUT the 0e softplus, so it is off by default.
+        # True reproduces runs made before this option existed: it adds ~+2 to low eps (test MAE 1.73 vs 0.26);
+        # eps_xx == eps_yy stays exact either way. (The spectra models keep the softplus; see tsenn/model.py.)
+        softplus_0e: bool = False,
     ) -> None:
         super().__init__(root_dir, task)
         self.root_path = Path(self.root_dir).resolve()
@@ -117,6 +121,7 @@ class TSENNStaticDielectric(Calculator):
             scale_2e=float(self.pick(mcfg, scale_2e, "scale_2e", 0.6969301341467804)),
             dropout_prob=float(self.pick(mcfg, dropout_prob, "dropout_prob", 0.4)),
             use_batch_norm=bool(self.pick(mcfg, use_batch_norm, "use_batch_norm", False)),
+            softplus_0e=bool(softplus_0e),
         )
         if self.tsenn.out_dim != 1:
             raise ValueError(

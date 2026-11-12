@@ -4,6 +4,7 @@ from typing import Dict
 from omegaconf import DictConfig
 
 from pipeline.base import ReinL
+from pipeline.filters.opt_filter import invalid_filter
 from pipeline.utils.save import save_structures
 from pipeline.utils.logger import Logger
 from rewards.reward import Reward
@@ -54,8 +55,8 @@ class Baseline(ReinL):
             **self.sample_cfg,
         )
 
-        # Filter bad samples
-        # sample_list, _ = invalid_filter(sample_list)
+        # Filter bad samples (same validity filter the RL pipeline applies before relaxation)
+        sample_data, sample_struc = invalid_filter(sample_data, sample_struc)
         logging.info(f"Number of filtered samples: {len(sample_struc)}")
         return sample_data, sample_struc
 
