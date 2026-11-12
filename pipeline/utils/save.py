@@ -44,6 +44,14 @@ def save_structures(structures, save_dir, filename):
 
 
 def _serialize_data(data):
+    if not hasattr(data, "frac_coords"):
+        # Not a DiffCSP/SymmCD record (e.g. MatterGen's ChemGraph: pos/cell/atomic_numbers):
+        # keep every field as stored.
+        fields = data.to_dict() if hasattr(data, "to_dict") else {k: data[k] for k in data.keys()}
+        return {
+            key: value.detach().cpu() if torch.is_tensor(value) else value
+            for key, value in fields.items()
+        }
     payload = {
         "frac_coords": data.frac_coords.detach().cpu(),
         "atom_types": data.atom_types.detach().cpu(),

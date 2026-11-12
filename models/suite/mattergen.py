@@ -1,4 +1,5 @@
 import os
+import shutil
 from pathlib import Path
 from typing import List, Literal
 import hydra
@@ -30,6 +31,25 @@ AVA_MODEL_NAME = Literal[
 ]
 
 
+# GemNet's scale factors. mattergen's GemNetT always reads
+# <mattergen package>/common/gemnet/gemnet-dT.json, but the git-tag install of mattergen v1.0.3
+# does not ship that package-data file, so loading any MatterGen checkpoint fails. The file is
+# vendored here (copied from microsoft/mattergen v1.0.3, MIT licence: models/mattergen/LICENSE.mattergen)
+# and put in place if missing.
+_GEMNET_SCALE_FILE = Path(__file__).resolve().parents[1] / "mattergen" / "gemnet-dT.json"
+# Same for the sampling configs (mattergen expects <site-packages>/sampling_conf/); vendored from
+# microsoft/mattergen v1.0.3 and passed explicitly to the sampler.
+_SAMPLING_CONF_DIR = Path(__file__).resolve().parents[1] / "mattergen" / "sampling_conf"
+
+
+def _ensure_gemnet_scale_file() -> None:
+    from mattergen.common.utils.globals import MODELS_PROJECT_ROOT
+
+    target = Path(MODELS_PROJECT_ROOT) / "common" / "gemnet" / "gemnet-dT.json"
+    if not target.exists():
+        shutil.copyfile(_GEMNET_SCALE_FILE, target)
+
+
 class MatterGenSuite(ModelSuite):
     def __init__(
         self,
@@ -52,6 +72,7 @@ class MatterGenSuite(ModelSuite):
         )
 
     def load_model(self):
+        _ensure_gemnet_scale_file()
         if self.model_name != "mattergen_base":
             model_name = self.model_name[10:]
         else:
@@ -95,6 +116,7 @@ class MatterGenSuite(ModelSuite):
         sampler = MatterGenSampler(
             batch_size=self.sample_cfg.batch_size,
             num_batches=self.sample_cfg.num_batches,
+            sampling_config_path=_SAMPLING_CONF_DIR,
         )
         return sampler
 

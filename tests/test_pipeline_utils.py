@@ -25,3 +25,22 @@ def test_metrics_csv_columns_never_shift(tmp_path):
     assert [r["cost"] for r in rows] == ["3", "7", "9"]
     assert rows[1]["reward mean"] == "0.2" and rows[2]["reward mean"] == ""
 
+
+def test_save_data_records_handles_mattergen_chemgraph(tmp_path):
+    import torch
+    from mattergen.common.data.chemgraph import ChemGraph
+    from torch_geometric.data import Data
+
+    from pipeline.utils.save import save_data_records
+
+    graph = ChemGraph(
+        pos=torch.rand(2, 3), cell=torch.eye(3).unsqueeze(0) * 4.0,
+        atomic_numbers=torch.tensor([11, 17]), num_atoms=torch.tensor([2]),
+    )
+    symmcd = Data(frac_coords=torch.rand(1, 3), atom_types=torch.tensor([8]),
+                  lengths=torch.ones(1, 3), angles=torch.full((1, 3), 90.0),
+                  num_atoms=torch.tensor([1]), spacegroup=torch.tensor([221]))
+    path = save_data_records([graph, symmcd], str(tmp_path), "x.pt")
+    loaded = torch.load(path)
+    assert set(loaded[0]) >= {"pos", "cell", "atomic_numbers"}
+    assert loaded[1]["spacegroup"] == 221 and "frac_coords" in loaded[1]
