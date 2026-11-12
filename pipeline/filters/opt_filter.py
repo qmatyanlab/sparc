@@ -112,6 +112,8 @@ def _worker_init():
 
 
 def parallel_run(func, args_list, num_workers: int | None = None):
+    if len(args_list) == 0:
+        return []
     if num_workers is None:
         num_workers = mp.cpu_count()
     with mp.Pool(processes=num_workers, initializer=_worker_init) as pool:

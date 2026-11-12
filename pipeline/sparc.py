@@ -70,6 +70,7 @@ class SPARC(ReinL):
         self.best_hit_step = -1
         self.best_hit_count = -1
         self.best_hit_reward_mean = float("-inf")
+        self._csv_extra_warned = False
 
         self.load_model()
         self._init_adaptive_spacegroup_policy()
@@ -877,6 +878,7 @@ class SPARC(ReinL):
         # so they enter finetuning with a negative advantage (needs a central baseline,
         # below). n_hard_negatives=0 (default) keeps this inert => legacy behavior.
         n_hard = int(self.finetune_cfg.get("n_hard_negatives", 0))
+        unstable_floor = float(self.finetune_cfg.get("unstable_floor", 0.0))
         if n_hard > 0 and len(neg_data) > 0:
             ratio = float(self.finetune_cfg.get("hard_negative_ratio", 0.5))
             cap = max(1, int(ratio * len(ft_data))) if ratio > 0 else len(neg_data)
@@ -911,9 +913,22 @@ class SPARC(ReinL):
 
     def _append_metrics_csv(self, row: dict):
         path = os.path.join(self.save_dir, "metrics.csv")
-        write_header = not os.path.exists(path)
+        if os.path.exists(path) and os.path.getsize(path) > 0:
+            with open(path, newline="") as f:
+                fieldnames = next(csv.reader(f), None) or list(row.keys())
+            write_header = False
+        else:
+            fieldnames = list(row.keys())
+            write_header = True
+        # Rows are written against the first header. Keys that only appear on some steps used to
+        # shift every later column; now unknown keys are dropped (with a one-time warning) and
+        # missing ones are left blank.
+        extra = [k for k in row if k not in fieldnames]
+        if extra and not self._csv_extra_warned:
+            self._csv_extra_warned = True
+            logging.warning(f"metrics.csv: dropping keys absent from the header: {extra}")
         with open(path, "a", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=list(row.keys()))
+            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
             if write_header:
                 writer.writeheader()
             writer.writerow(row)
