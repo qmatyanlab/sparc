@@ -7,6 +7,7 @@ The finetuning API (add_noise / calc_sample_loss / calc_kl_reg) is implemented
 on CSPDiffusion in symmcd/pl_modules/discrete_diffusion_w_site_symm.py.
 """
 
+import inspect
 import os
 import shutil
 from collections import defaultdict
@@ -305,11 +306,21 @@ def _is_valid_structure_inputs(
     return True
 
 
+def _min_interatomic_distance(structure: Structure) -> float:
+    if len(structure) < 2:
+        # A lone atom only sees its own periodic images.
+        return float(min(structure.lattice.abc))
+    dm = np.array(structure.distance_matrix, dtype=float)
+    np.fill_diagonal(dm, np.inf)
+    return float(dm.min())
+
+
 def _split_generation_output(
     outputs: dict,
     input_batch,
     representative: Optional[dict] = None,
     use_representative: bool = False,
+    min_interatomic_distance: float = 0.0,
 ) -> Tuple[List[Data], List[Structure]]:
     """Split a batched SymmCD sample() output into individual Data + Structure.
 
@@ -332,9 +343,17 @@ def _split_generation_output(
 
     B = len(num_atoms)
     sg_condition = getattr(input_batch, "sg_condition", None)
+    kept_index = outputs.get("kept_index")
     if sg_condition is not None:
         try:
-            sg_condition = sg_condition.detach().cpu().reshape(B, -1)
+            if kept_index is not None:
+                # sample() may drop crystals; sg_condition is still per input crystal.
+                n_in = int(input_batch.num_graphs)
+                sg_condition = (
+                    sg_condition.detach().cpu().reshape(n_in, -1)[kept_index.cpu()]
+                )
+            else:
+                sg_condition = sg_condition.detach().cpu().reshape(B, -1)
         except Exception:
             sg_condition = None
 
@@ -388,6 +407,12 @@ def _split_generation_output(
                     or not np.isfinite(structure.frac_coords).all()
                     or structure.volume < 0.1
                 ):
+                    structure = None
+                elif (
+                    min_interatomic_distance > 0
+                    and _min_interatomic_distance(structure) < min_interatomic_distance
+                ):
+                    # Atoms on top of each other (Wyckoff-snap failure): reject the cell.
                     structure = None
             except Exception:
                 structure = None
@@ -447,6 +472,10 @@ class SymmCDSampler:
         generation_batch_size: int = 64,
         sg_temperature: float = 1.0,
         finetune_on_representative: bool = False,
+        orbit_merge_tol: float = 0.5,
+        cartesian_snap: bool = True,
+        strict_snap: bool = True,
+        min_interatomic_distance: float = 0.5,
     ) -> None:
         self.model_path = model_path
         self.dataset = dataset
@@ -457,6 +486,12 @@ class SymmCDSampler:
         # When True, the fine-tune Data carries the representative (asym-unit) M' that the
         # reverse-diffusion sampler acted on, instead of the orbit-expanded cell M.
         self.finetune_on_representative = bool(finetune_on_representative)
+        # t=0 Wyckoff snap / orbit expansion (see CSPDiffusion.sample).
+        self.orbit_merge_tol = float(orbit_merge_tol)
+        self.cartesian_snap = bool(cartesian_snap)
+        self.strict_snap = bool(strict_snap)
+        # Reject expanded cells with any interatomic distance below this (Angstrom; 0 = off).
+        self.min_interatomic_distance = float(min_interatomic_distance)
 
     def _resolve_dataset_paths(self, model) -> tuple[str, str]:
         cfg = getattr(model, "_sparc_hparams_cfg", None)
@@ -542,18 +577,31 @@ class SymmCDSampler:
         model.eval()
         device = next(model.parameters()).device
 
+        # Only the site-symmetry model (discrete_diffusion_w_site_symm) has the t=0 snap options.
+        sample_params = inspect.signature(model.sample).parameters
+        snap_kwargs = {
+            key: value
+            for key, value in (
+                ("orbit_merge_tol", self.orbit_merge_tol),
+                ("cartesian_snap", self.cartesian_snap),
+                ("strict_snap", self.strict_snap),
+            )
+            if key in sample_params
+        }
+
         all_data: List[Data] = []
         all_structures: List[Structure] = []
 
         with torch.no_grad():
             for batch in loader:
                 batch = batch.to(device)
-                outputs, extra = model.sample(batch, step_lr=self.step_lr)
+                outputs, extra = model.sample(batch, step_lr=self.step_lr, **snap_kwargs)
                 batch_data, batch_structures = _split_generation_output(
                     outputs,
                     batch,
                     representative=(extra or {}).get("representative"),
                     use_representative=self.finetune_on_representative,
+                    min_interatomic_distance=self.min_interatomic_distance,
                 )
                 all_data.extend(batch_data)
                 all_structures.extend(batch_structures)
@@ -613,6 +661,12 @@ class SymmCDSuite(ModelSuite):
             sg_temperature=float(self.sample_cfg.get("sg_temperature", 1.0)),
             finetune_on_representative=bool(
                 self.sample_cfg.get("finetune_on_representative", False)
+            ),
+            orbit_merge_tol=float(self.sample_cfg.get("orbit_merge_tol", 0.5)),
+            cartesian_snap=bool(self.sample_cfg.get("cartesian_snap", True)),
+            strict_snap=bool(self.sample_cfg.get("strict_snap", True)),
+            min_interatomic_distance=float(
+                self.sample_cfg.get("min_interatomic_distance", 0.5)
             ),
         )
 
