@@ -276,6 +276,7 @@ class TSENN(Calculator):
         output_mode: str = "tensor",
         max_edges: int | None = None,
         max_edges_per_atom: float | None = 256.0,
+        softplus_0e: bool = True,
     ) -> None:
         super().__init__(root_dir, task)
         self.batch_size = batch_size
@@ -331,6 +332,7 @@ class TSENN(Calculator):
             reduce_output=True,
             dropout_prob=dropout_prob,
             use_batch_norm=use_batch_norm,
+            softplus_0e=softplus_0e,
         ).to(self.device, dtype=self.dtype)
 
         state = torch.load(self.model_path, map_location=self.device)

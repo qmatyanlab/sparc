@@ -78,8 +78,12 @@ class Network(torch.nn.Module):
         reduce_output=True,
         dropout_prob=0.5,
         use_batch_norm=True,
+        softplus_0e=True,
     ) -> None:
         super().__init__()
+        # Softplus on the 0e outputs keeps spectra non-negative. Only for checkpoints trained with it: the
+        # static-dielectric tensor surrogate was trained without it (False recovers its test accuracy).
+        self.softplus_0e = bool(softplus_0e)
         self.mul = mul
         self.lmax = lmax
         self.max_radius = max_radius
@@ -221,7 +225,8 @@ class Network(torch.nn.Module):
         for lay in self.layers:
             x = lay(x, z, edge_src, edge_dst, edge_attr, edge_length_embedded)
 
-        x = self._apply_softplus_to_0e(x)
+        if self.softplus_0e:
+            x = self._apply_softplus_to_0e(x)
 
         if self.reduce_output:
             return scatter(x, batch, dim_size=batch.max().item() + 1).div(
