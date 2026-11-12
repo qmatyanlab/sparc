@@ -1,13 +1,4 @@
-# Layered-uniaxial dielectric FoM GATED by band gap -- IN-PLANE EMPHASIS variant.
-#
-# FoM = min( d_aniso , g_gap )   (reduce: min = conjunctive AND)
-#   d_aniso : TSENNStaticDielectric (layered_uniaxial) with an EMPHASIZED in-plane isotropy
-#             penalty, normalized ascending 0->0.20 (ceiling unchanged from min/loose variants).
-#   g_gap   : E3NNBandGap, ascending ramp minv=0.3, maxv=0.8 (the LOOSE gate window).
-#
-#
-# Band gap = data/surrogates/TSENN_bandgap.torch (2026-07-14 full-MP retrain; HF sparc-assets now
-# serves this exact file, prior checkpoint preserved as TSENN_bandgap_old.torch), softplus-OFF.
+
 _target_: rewards.reward.Reward
 
 root_dir: rewards

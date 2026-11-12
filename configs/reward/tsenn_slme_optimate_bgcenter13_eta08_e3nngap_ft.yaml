@@ -1,11 +1,4 @@
-# FINE-TUNED variant of tsenn_slme_optimate_bgcenter13_eta08_e3nngap.yaml.
-# Identical in every way EXCEPT the E3NN band-gap checkpoint: all four gap
-# references (the standalone band_gap term's model_path AND the eg_model_path of
-# the eta/jsc/voc SLME terms) point at the active-learning model soup
-# (TSENN_bandgap_ft_soup.torch = weight-average of the 5 fine-tuned seeds),
-# which corrects the OOD/reward-hacking gap errors (OOD MAE 0.78->0.51 eV;
-# MAE vs QE on the verification set 1.13->0.52 eV). Spectra surrogate unchanged
-# (attribution showed it is not the error source). See active_learning/.
+
 _target_: rewards.reward.Reward
 
 root_dir: rewards
